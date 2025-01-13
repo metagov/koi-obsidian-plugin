@@ -1,16 +1,24 @@
+import KoiPlugin from "main";
 import { App, normalizePath } from "obsidian";
 import { RidBundle } from "rid-lib-types";
 import type { KoiPluginSettings } from "settings";
 
 
 export class RidStorage {
+	plugin: KoiPlugin;
 	app: App;
 	settings: KoiPluginSettings;
 
-    constructor(app: App, settings: KoiPluginSettings) {
-		this.app = app;
-		this.settings = settings;
+    constructor(plugin: KoiPlugin) {
+		this.plugin = plugin
+		this.app = plugin.app;
+		this.settings = plugin.settings;
     }
+
+	async directoryExists() {
+		return await this.app.vault.adapter.exists(
+			this.settings.koiSyncDirectoryPath);
+	}
 
 	getRidPath(rid: string) {
 		return normalizePath(
@@ -18,16 +26,12 @@ export class RidStorage {
 	}
 
 	getRidFile(rid: string) {
-		return this.app.vault.getAbstractFileByPath(this.getRidPath(rid));
+		return this.app.vault.getFileByPath(this.getRidPath(rid));
 	}
 
-	validateDirectory(): boolean {
-		const directory = this.app.vault.getFolderByPath(
-			this.settings.koiSyncDirectoryPath);
-
-		if (directory === null) {
-			console.log("creating directory")
-			this.app.vault.createFolder(
+	async validateDirectory(): Promise<boolean> {
+		if (!(await this.directoryExists())) {
+			await this.app.vault.createFolder(
 				this.settings.koiSyncDirectoryPath);
 
 			return false;
@@ -37,7 +41,8 @@ export class RidStorage {
 	}
 
     async readAllRids() {
-		this.validateDirectory();
+		if (!(await this.directoryExists()))
+			return [];
 
         const rids = [];
 		const paths = await this.app.vault.adapter.list(
@@ -58,19 +63,17 @@ export class RidStorage {
 	write(rid: string, bundle: RidBundle) {
 		this.validateDirectory();
 
-		const msg_text = bundle.contents.text;
-		delete bundle.contents.text;
-		const text: string = "---\n" + JSON.stringify(bundle.contents) + "\n---\n>" + msg_text;
-
+		const formattedText = this.plugin.handleBarTemplate(bundle.contents);
+		
 		this.app.vault.adapter.write(
 			this.getRidPath(rid),
-			text
+			formattedText
 		);
 	}
 
 	delete(rid: string) {
 		const file = this.getRidFile(rid);
-		if (file != null)
-			this.app.vault.delete(file);
+		if (!file) return;
+		this.app.vault.delete(file);
 	}
 }

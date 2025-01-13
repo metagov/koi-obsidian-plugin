@@ -81,6 +81,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.templatePath)
                 .onChange(async (value) => {
                     this.plugin.settings.templatePath = value;
+                    await this.plugin.handleBarCompile();
                     await this.plugin.saveSettings();
                 }));
     }

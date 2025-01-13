@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Plugin, TFile, normalizePath } from 'obsidian';
 import * as Handlebars from 'handlebars';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
@@ -13,13 +13,14 @@ export default class KoiPlugin extends Plugin {
 	syncMutex: Mutex;
 	ridStorage: RidStorage;
 	koiInterface: KoiInterface;
+	handleBarTemplate: Handlebars.TemplateDelegate;
 
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
 
-		this.ridStorage = new RidStorage(this.app, this.settings);
-		this.koiInterface = new KoiInterface(this.settings, this);
+		this.ridStorage = new RidStorage(this);
+		this.koiInterface = new KoiInterface(this);
 		
 		this.syncMutex = new Mutex();
 		this.connected = false;
@@ -35,6 +36,14 @@ export default class KoiPlugin extends Plugin {
 			}
 		});
 
+		this.registerEvent(
+			this.app.vault.on('modify', async (file: TFile) => {
+				if (file.name !== this.settings.templatePath) return;
+				await this.handleBarCompile();
+				console.log("file modified:", file);
+			})
+		);
+
 		this.app.workspace.onLayoutReady(() => {
 			this.setup();
 		})
@@ -47,6 +56,7 @@ export default class KoiPlugin extends Plugin {
 	}
 
 	async setup() {
+		console.log("ready");
 		if (!this.ridStorage.validateDirectory())
 			await this.refreshKoi();
 
@@ -55,6 +65,8 @@ export default class KoiPlugin extends Plugin {
             await this.koiInterface.subscribeToEvents();
 			await this.refreshKoi();
 		}
+
+		await this.handleBarCompile();
 
 		this.syncKoi();
 		this.registerInterval(
@@ -74,6 +86,18 @@ export default class KoiPlugin extends Plugin {
 		this.statusBar.setText(
 			`KOI - ${emoji}`
 		)
+	}
+
+	async handleBarCompile() {
+		const file = this.app.vault.getFileByPath(
+			normalizePath(this.settings.templatePath));
+
+		console.log(this.settings.templatePath);
+
+		if (!file) return;
+		const templateString = await this.app.vault.read(file);
+		console.log(templateString);
+		this.handleBarTemplate = Handlebars.compile(templateString);
 	}
 
 	async syncKoi() {
@@ -137,18 +161,21 @@ export default class KoiPlugin extends Plugin {
 
 			console.log("acquired sync mutex");
 
-			const rids = await this.koiInterface.getRids();
-			if (!rids) return;
+			const remoteRids = await this.koiInterface.getRids();
+			if (!remoteRids) return;
 
-			console.log(`fetched ${rids.length} rids`);
+			console.log(`fetched ${remoteRids.length} rids`);
 
-			for (const rid of (await this.ridStorage.readAllRids())) {
-				if (!rids.includes(rid)) {
-					this.ridStorage.delete(rid);
+			const localRids = await this.ridStorage.readAllRids();
+			console.log("local rids", localRids);
+
+			for (const localRid of localRids) {
+				if (!remoteRids.includes(localRid)) {
+					this.ridStorage.delete(localRid);
 				}
 			}
 
-			for (const rid of rids) {
+			for (const rid of remoteRids) {
 				console.log(`retrieving ${rid}`);
 
 				this.koiInterface.getObject(rid)

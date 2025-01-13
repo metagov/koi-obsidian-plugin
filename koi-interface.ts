@@ -8,9 +8,9 @@ export class KoiInterface {
     settings: KoiPluginSettings;
     plugin: KoiPlugin;
 
-    constructor(settings: KoiPluginSettings, plugin: KoiPlugin) {
-        this.settings = settings;
+    constructor(plugin: KoiPlugin) {
         this.plugin = plugin;
+        this.settings = plugin.settings;
     }
 
     async callApi(path: string, method: string = "GET") {
@@ -32,19 +32,15 @@ export class KoiInterface {
     }
 
     async pollEvents(): Promise<Array<RidEvent>> {
-        const events = await this.callApi(
+        return await this.callApi(
             `/events/poll/${this.settings.koiApiSubscriberId}`);
-        return events;
     }
 
     async getObject(rid: string): Promise<RidBundle> {
-        const bundle = await this.callApi(
-            `/object?rid=${rid}`);
-        return bundle;
+        return await this.callApi(`/object?rid=${rid}`);
     }
 
     async getRids(): Promise<Array<string>> {
-        const rids = await this.callApi("/rids");
-        return rids
+        return await this.callApi("/rids");
     }
 }
