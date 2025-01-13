@@ -103,6 +103,8 @@ export default class KoiPlugin extends Plugin {
 	async syncKoi() {
 		let events = [];
 
+		if (this.syncMutex.isLocked()) return;
+
 		console.log("syncing");
 
 		try {
@@ -135,11 +137,8 @@ export default class KoiPlugin extends Plugin {
 				console.log(`${event.event_type}: ${event.rid}`);
 
 				if (event.event_type == 'NEW' || event.event_type == 'UPDATE') {
-					this.koiInterface.getObject(event.rid)
-						.then(bundle => this.ridStorage.write(event.rid, bundle))
-						.catch(err => {
-							console.error(err);
-						});
+					const bundle = await this.koiInterface.getObject(event.rid);
+					if (bundle) this.ridStorage.write(event.rid, bundle);
 					
 				} else if (event.event_type == 'FORGET') {
 					this.ridStorage.delete(event.rid);
@@ -155,10 +154,9 @@ export default class KoiPlugin extends Plugin {
 	async refreshKoi() {
 		console.log("attempting refresh");
 		const release = await this.syncMutex.acquire();
+		this.updateStatusBar();
 
 		try {
-			this.updateStatusBar();
-
 			console.log("acquired sync mutex");
 
 			const remoteRids = await this.koiInterface.getRids();
@@ -178,11 +176,8 @@ export default class KoiPlugin extends Plugin {
 			for (const rid of remoteRids) {
 				console.log(`retrieving ${rid}`);
 
-				this.koiInterface.getObject(rid)
-					.then(bundle => this.ridStorage.write(rid, bundle))
-					.catch(err => {
-						console.error(err);
-					});
+				const bundle = await this.koiInterface.getObject(rid);
+				if (bundle) this.ridStorage.write(rid, bundle);
 			}
 		} finally {
 			console.log("released sync mutex");
