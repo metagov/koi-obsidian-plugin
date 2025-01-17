@@ -36,6 +36,10 @@ export default class KoiPlugin extends Plugin {
 			}
 		});
 
+		Handlebars.registerHelper("json", function (data) {
+			return JSON.stringify(data)
+		});
+
 		this.registerEvent(
 			this.app.vault.on('modify', async (file: TFile) => {
 				if (file.name !== this.settings.templatePath) return;
