@@ -57,9 +57,11 @@ export default class KoiPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'reformat-telescopes',
-			name: 'reformat-telescopes',
+			name: 'Reformat Telescopes from Template',
 			callback: async () => {
+				new Notice("Reformatting Telescopes...");
 				await this.fileFormatter.rewriteAll();
+				new Notice("Done!");
 			}
 		})
 
@@ -234,6 +236,8 @@ export default class KoiPlugin extends Plugin {
 
 			console.log(`fetched ${remoteManifests.length} rids`);
 
+			const promises = [];
+
 			for (const manifest of remoteManifests) {
 				if (this.settings.paused) break;
 
@@ -243,16 +247,19 @@ export default class KoiPlugin extends Plugin {
 				if (!bundle || JSON.stringify(bundle.manifest) !== JSON.stringify(manifest)) {
 					console.log("writing", manifest.rid);
 
-					const remoteBundle = await this.koiInterface.getObject(manifest.rid);
-					if (remoteBundle) {
-						await this.ridCache.write(manifest.rid, remoteBundle);
-						await this.fileFormatter.write(manifest.rid);
-						this.updateStatusBar();
-					}
+					const promise = this.koiInterface.getObject(manifest.rid)
+						.then((remoteBundle) => {
+							if (!remoteBundle) return;
+							this.ridCache.write(manifest.rid, remoteBundle)
+								.then(() => this.fileFormatter.write(manifest.rid))
+								.then(() => this.updateStatusBar());
+						});
+
+					promises.push(promise);
 				}
 			}
-
-
+			
+			await Promise.all(promises);
 			const localRids = await this.ridCache.readAllRids();
 			// console.log("local rids", localRids);
 

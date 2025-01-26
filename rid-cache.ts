@@ -88,7 +88,7 @@ export class RidCache {
 	}
 
     async drop() {
-        await this.app.vault.adapter.rmdir(this.directoryPath(), false);
+        await this.app.vault.adapter.rmdir(this.directoryPath(), true);
         this.length = 0;
     }
 }

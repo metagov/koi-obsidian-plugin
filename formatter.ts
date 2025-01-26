@@ -22,6 +22,7 @@ export class TelescopeFormatter {
 
 		Handlebars.registerHelper("json", (data) => JSON.stringify(data));
 		Handlebars.registerHelper("yaml", (data) => stringifyYaml(data));
+		Handlebars.registerHelper("stringPrefix", (data: string) => data.substring(0, 50) + "...");
 	}
 
 	async compileTemplate() {
@@ -43,7 +44,7 @@ export class TelescopeFormatter {
 
 	async rewriteAll() {
 		for (const rid of (await this.cache.readAllRids())) {
-			this.write(rid);
+			await this.write(rid);
 		}
 	}
 
