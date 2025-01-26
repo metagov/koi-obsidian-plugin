@@ -16,9 +16,9 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
 	koiApiKey: "",
 	koiApiSubscriberId: "",
 	koiSyncDirectoryPath: "telescope",
-	templatePath: "",
+	templatePath: "telescope-template.md",
     initialized: false,
-    paused: true
+    paused: false
 }
 
 export class KoiSettingTab extends PluginSettingTab {

@@ -4,6 +4,7 @@ import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
 import { KoiInterface } from 'koi-interface';
 import { RidCache } from 'rid-cache';
+import { defaultTelescopeTemplate } from 'default-template';
 
 
 export default class KoiPlugin extends Plugin {
@@ -61,7 +62,7 @@ export default class KoiPlugin extends Plugin {
 			callback: async () => {
 				new Notice("Reformatting Telescopes...");
 				await this.fileFormatter.rewriteAll();
-				new Notice("Done!");
+				new Notice("Done reformatting!");
 			}
 		})
 
@@ -116,10 +117,12 @@ export default class KoiPlugin extends Plugin {
 
 	async updateStatusBar() {
 		let syncing = this.syncMutex.isLocked();
-
 		const prevIconString = this.statusBarIconString;
 		
-		if (this.settings.paused) {
+		if (!this.settings.initialized) {
+			this.statusBarIconString = "circle-play";
+			this.statusBarIcon.ariaLabel = "Click to initialize KOI link!";
+		} else if (this.settings.paused) {
 			this.statusBarIconString = "circle-pause";
 			this.statusBarIcon.ariaLabel = "Syncing paused";
 		} else if (!this.connected) {
@@ -150,16 +153,17 @@ export default class KoiPlugin extends Plugin {
 
 	async handleIconClick() {
 		if (this.validateSettings()) {
-			this.settings.paused = !this.settings.paused;
-			this.updateStatusBar();
-			if (!this.settings.initialized) {
+			if (this.settings.initialized) {
+				this.settings.paused = !this.settings.paused;
+				this.updateStatusBar();
+			} else {
 				console.log("refreshing");
-				await this.refreshKoi();
 				this.settings.initialized = true;
+				await this.refreshKoi();
 			}
 		} else {
 			this.settings.paused = true;
-			new Notice("Please set the API URL and key in the KOI plugin settings");
+			new Notice("Please set an API key in the KOI plugin settings");
 		}
 		await this.saveSettings();
 	}
@@ -167,7 +171,7 @@ export default class KoiPlugin extends Plugin {
 	async syncKoi() {
 		let events = [];
 
-		if (this.settings.paused) return;
+		if (this.settings.paused || !this.settings.initialized) return;
 		if (this.syncMutex.isLocked()) return;
 
 		if (!this.validateSettings()) {
@@ -261,7 +265,7 @@ export default class KoiPlugin extends Plugin {
 			
 			await Promise.all(promises);
 			const localRids = await this.ridCache.readAllRids();
-			// console.log("local rids", localRids);
+			console.log("local rids", localRids);
 
 			for (const localRid of localRids) {
 				if (!remoteRids.includes(localRid)) {
@@ -279,7 +283,16 @@ export default class KoiPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedSettings = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);
+		if (loadedSettings !== null) return;
+
+		if (await this.app.vault.adapter.exists(this.settings.templatePath)) return;
+
+		await this.app.vault.adapter.write(
+			this.settings.templatePath,
+			defaultTelescopeTemplate
+		);
 	}
 
 	async saveSettings() {
