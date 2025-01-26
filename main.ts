@@ -1,50 +1,83 @@
-import { Plugin, TFile, normalizePath } from 'obsidian';
-import * as Handlebars from 'handlebars';
+import { Plugin, TFile, setIcon, Notice } from 'obsidian';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
-import { RidStorage } from 'rid-storage';
+import { TelescopeFormatter } from 'formatter';
 import { KoiInterface } from 'koi-interface';
+import { RidCache } from 'rid-cache';
 
 
 export default class KoiPlugin extends Plugin {
 	settings: KoiPluginSettings;
-	statusBar: HTMLElement;
+	// statusBar: HTMLElement;
+	statusBarIconString: string;
+	statusBarIcon: HTMLElement;
+	statusBarText: HTMLElement;
 	connected: boolean;
 	syncMutex: Mutex;
-	ridStorage: RidStorage;
+	fileFormatter: TelescopeFormatter;
 	koiInterface: KoiInterface;
-	handleBarTemplate: Handlebars.TemplateDelegate;
+	ridCache: RidCache;
 
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
 
-		this.ridStorage = new RidStorage(this);
+		this.ridCache = new RidCache(this);
 		this.koiInterface = new KoiInterface(this);
+		this.fileFormatter = new TelescopeFormatter(this, this.ridCache);
 		
 		this.syncMutex = new Mutex();
-		this.connected = false;
+		this.connected = true;
 
-		this.statusBar = this.addStatusBarItem();
-		await this.updateStatusBar();
+		this.statusBarText = this.addStatusBarItem();
+		this.statusBarIcon = this.addStatusBarItem();
+		this.statusBarIcon.addClass("koi-status-icon");
+		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
+		this.statusBarIcon.addEventListener("click", async () => {
+			await this.handleIconClick();
+		});
+
+		window.p = this;
 
 		this.addCommand({
 			id: 'refresh-with-koi',
 			name: 'Refresh with KOI',
-			callback: () => {
-				this.refreshKoi();
+			callback: async () => {
+				await this.refreshKoi();
 			}
 		});
 
-		Handlebars.registerHelper("json", function (data) {
-			return JSON.stringify(data)
+		this.addCommand({
+			id: 'drop-rid-cache',
+			name: 'Drop RID cache',
+			callback: async () => {
+				await this.ridCache.drop();
+			}
 		});
+
+		this.addCommand({
+			id: 'reformat-telescopes',
+			name: 'reformat-telescopes',
+			callback: async () => {
+				await this.fileFormatter.rewriteAll();
+			}
+		})
+
+
+		this.addRibbonIcon(
+			"refresh-cw",
+			"Manually sync with Telescope KOI",
+			() => {
+				this.refreshKoi();
+			}
+		)
+
+	
 
 		this.registerEvent(
 			this.app.vault.on('modify', async (file: TFile) => {
 				if (file.name !== this.settings.templatePath) return;
-				await this.handleBarCompile();
-				console.log("file modified:", file);
+				await this.fileFormatter.compileTemplate();
 			})
 		);
 
@@ -61,8 +94,9 @@ export default class KoiPlugin extends Plugin {
 
 	async setup() {
 		console.log("ready");
-		if (!this.ridStorage.validateDirectory())
-			await this.refreshKoi();
+		await this.ridCache.readAllRids();
+		await this.updateStatusBar();
+		await this.fileFormatter.compileTemplate();
 
 		if (this.settings.koiApiSubscriberId === "") {
 			console.log("missing subcriber id");
@@ -70,7 +104,7 @@ export default class KoiPlugin extends Plugin {
 			await this.refreshKoi();
 		}
 
-		await this.handleBarCompile();
+		console.log('setup');
 
 		this.syncKoi();
 		this.registerInterval(
@@ -79,49 +113,73 @@ export default class KoiPlugin extends Plugin {
 	}
 
 	async updateStatusBar() {
-		let emoji = "✅"
 		let syncing = this.syncMutex.isLocked();
 
-		if (!this.connected)
-			emoji = "❌";
-		else if (syncing)
-			emoji = "🔄";
+		const prevIconString = this.statusBarIconString;
+		
+		if (this.settings.paused) {
+			this.statusBarIconString = "circle-pause";
+			this.statusBarIcon.ariaLabel = "Syncing paused";
+		} else if (!this.connected) {
+			this.statusBarIconString = "refresh-cw-off";
+			this.statusBarIcon.ariaLabel = "Can't reach server";
+		} else if (syncing) {
+			this.statusBarIconString = "refresh-cw";
+			this.statusBarIcon.ariaLabel = "Syncing...";
+		} else {
+			this.statusBarIconString = "circle-check";
+			this.statusBarIcon.ariaLabel = "Synced!";
+		}
 
-		this.statusBar.setText(
-			`KOI - ${emoji}`
-		)
+
+		if (this.statusBarIconString != prevIconString)
+			setIcon(this.statusBarIcon, this.statusBarIconString);
+
+		const numItems = this.ridCache.length;
+		this.statusBarText.setText(`${numItems} 🔭`);
 	}
 
-	async handleBarCompile() {
-		const file = this.app.vault.getFileByPath(
-			normalizePath(this.settings.templatePath));
+    validateSettings(): boolean {
+        return (
+            this.settings.koiApiUrl !== "" &&
+            this.settings.koiApiKey !== ""
+        );
+    }
 
-		console.log(this.settings.templatePath);
-
-		if (!file) return;
-		const templateString = await this.app.vault.read(file);
-		console.log(templateString);
-		this.handleBarTemplate = Handlebars.compile(templateString);
+	async handleIconClick() {
+		if (this.validateSettings()) {
+			this.settings.paused = !this.settings.paused;
+			this.updateStatusBar();
+			if (!this.settings.initialized) {
+				console.log("refreshing");
+				await this.refreshKoi();
+				this.settings.initialized = true;
+			}
+		} else {
+			this.settings.paused = true;
+			new Notice("Please set the API URL and key in the KOI plugin settings");
+		}
+		await this.saveSettings();
 	}
 
 	async syncKoi() {
 		let events = [];
 
+		if (this.settings.paused) return;
 		if (this.syncMutex.isLocked()) return;
 
+		if (!this.validateSettings()) {
+			this.updateStatusBar();
+			return;
+		}
 		console.log("syncing");
 
 		try {
 			events = await this.koiInterface.pollEvents();
-			this.connected = true;
 		} catch (err) {
-			if (err.status === 404) {
-				await this.koiInterface.subscribeToEvents();
-				await this.refreshKoi();
-			} else {
-				this.connected = false;
-				throw err;
-			}
+			if (err.status !== 404) throw err;
+			await this.koiInterface.subscribeToEvents();
+			await this.refreshKoi();
 			return;
 		} finally {
 			this.updateStatusBar();
@@ -142,10 +200,16 @@ export default class KoiPlugin extends Plugin {
 
 				if (event.event_type == 'NEW' || event.event_type == 'UPDATE') {
 					const bundle = await this.koiInterface.getObject(event.rid);
-					if (bundle) this.ridStorage.write(event.rid, bundle);
+					if (bundle) {
+						await this.ridCache.write(event.rid, bundle);
+						await this.fileFormatter.write(event.rid);
+						this.updateStatusBar();
+					}
 					
 				} else if (event.event_type == 'FORGET') {
-					this.ridStorage.delete(event.rid);
+					await this.ridCache.delete(event.rid);
+					await this.fileFormatter.delete(event.rid);
+					this.updateStatusBar();
 				}
 			}
 		} finally {
@@ -163,25 +227,42 @@ export default class KoiPlugin extends Plugin {
 		try {
 			console.log("acquired sync mutex");
 
-			const remoteRids = await this.koiInterface.getRids();
-			if (!remoteRids) return;
+			const remoteManifests = await this.koiInterface.getManifests();
+			if (!remoteManifests) return;
 
-			console.log(`fetched ${remoteRids.length} rids`);
+			const remoteRids: Array<string> = [];
 
-			const localRids = await this.ridStorage.readAllRids();
-			console.log("local rids", localRids);
+			console.log(`fetched ${remoteManifests.length} rids`);
 
-			for (const localRid of localRids) {
-				if (!remoteRids.includes(localRid)) {
-					this.ridStorage.delete(localRid);
+			for (const manifest of remoteManifests) {
+				if (this.settings.paused) break;
+
+				remoteRids.push(manifest.rid);
+
+				const bundle = await this.ridCache.read(manifest.rid);
+				if (!bundle || JSON.stringify(bundle.manifest) !== JSON.stringify(manifest)) {
+					console.log("writing", manifest.rid);
+
+					const remoteBundle = await this.koiInterface.getObject(manifest.rid);
+					if (remoteBundle) {
+						await this.ridCache.write(manifest.rid, remoteBundle);
+						await this.fileFormatter.write(manifest.rid);
+						this.updateStatusBar();
+					}
 				}
 			}
 
-			for (const rid of remoteRids) {
-				console.log(`retrieving ${rid}`);
 
-				const bundle = await this.koiInterface.getObject(rid);
-				if (bundle) this.ridStorage.write(rid, bundle);
+			const localRids = await this.ridCache.readAllRids();
+			// console.log("local rids", localRids);
+
+			for (const localRid of localRids) {
+				if (!remoteRids.includes(localRid)) {
+					console.log("deleting", localRid);
+					await this.ridCache.delete(localRid);
+					await this.fileFormatter.delete(localRid);
+					this.updateStatusBar();
+				}
 			}
 		} finally {
 			console.log("released sync mutex");

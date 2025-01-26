@@ -1,7 +1,7 @@
 import { requestUrl } from 'obsidian';
 import type KoiPlugin from "main";
 import type { KoiPluginSettings } from "settings";
-import { RidBundle, RidEvent } from 'rid-lib-types';
+import { RidBundle, RidEvent, RidManifest } from 'rid-lib-types';
 
 
 export class KoiInterface {
@@ -14,15 +14,20 @@ export class KoiInterface {
     }
 
     async callApi(path: string, method: string = "GET") {
-        const resp = await requestUrl({
-            url: this.settings.koiApiUrl + path,
-            headers: {
-                "X-API-Key": this.settings.koiApiKey
-            },
-            method: method
-        });
-
-        return resp.json;
+        try {
+            const resp = await requestUrl({
+                url: this.settings.koiApiUrl + path,
+                headers: {
+                    "X-API-Key": this.settings.koiApiKey
+                },
+                method: method
+            });
+            this.plugin.connected = true;
+            return resp.json;
+        } catch (err) {
+            this.plugin.connected = (err.status === 404);
+            throw err;
+        }
     }
 
     async subscribeToEvents() {
@@ -42,5 +47,9 @@ export class KoiInterface {
 
     async getRids(): Promise<Array<string>> {
         return await this.callApi("/rids");
+    }
+
+    async getManifests(): Promise<Array<RidManifest>> {
+        return await this.callApi("/manifests");
     }
 }

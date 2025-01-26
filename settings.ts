@@ -7,6 +7,8 @@ export interface KoiPluginSettings {
 	koiApiSubscriberId: string;
 	koiSyncDirectoryPath: string;
 	templatePath: string;
+    initialized: boolean;
+    paused: boolean;
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
@@ -14,7 +16,9 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
 	koiApiKey: "",
 	koiApiSubscriberId: "",
 	koiSyncDirectoryPath: "telescope",
-	templatePath: ""
+	templatePath: "",
+    initialized: false,
+    paused: true
 }
 
 export class KoiSettingTab extends PluginSettingTab {
@@ -81,7 +85,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.templatePath)
                 .onChange(async (value) => {
                     this.plugin.settings.templatePath = value;
-                    await this.plugin.handleBarCompile();
+                    await this.plugin.fileFormatter.compileTemplate();
                     await this.plugin.saveSettings();
                 }));
     }

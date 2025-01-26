@@ -1,8 +1,34 @@
-/*
+.koi-status-icon {
+    cursor: pointer;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.koi-status-icon:hover {
+    background: var(--background-modifier-hover);
+}
 
-If your plugin does not need CSS, delete this file.
+/* .status-bar-item svg.svg-icon.lucide-circle-alert{
+    color: var(--color-red);
+} */
 
-*/
+.status-bar-item svg.svg-icon.refresh-cw-off {
+    color: var(--color-red);
+}
+
+.status-bar-item svg.svg-icon.lucide-refresh-cw {
+    color: var(--color-blue);
+
+    animation: rotate 2s linear infinite;
+}
+
+.status-bar-item svg.svg-icon.lucide-circle-check {
+    color: var(--color-green);
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
