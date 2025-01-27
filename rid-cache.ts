@@ -7,7 +7,7 @@ export class RidCache {
     plugin: KoiPlugin;
     app: App;
     settings: KoiPluginSettings;
-    length: number = 0;
+    telescopeCount: number = 0;
 
     constructor(plugin: KoiPlugin) {
         this.plugin = plugin;
@@ -37,7 +37,7 @@ export class RidCache {
         }
 
         if (!(await this.exists(rid)))
-            this.length++;
+            this.telescopeCount++;
 
         await this.app.vault.adapter.write(
             this.filePathTo(rid),
@@ -63,6 +63,7 @@ export class RidCache {
         if (!(await this.app.vault.adapter.exists(this.directoryPath())))
             return [];
 
+        let telescopeCount = 0;
         const rids: Array<string> = [];
         const paths = await this.app.vault.adapter.list(
             this.directoryPath());
@@ -73,9 +74,10 @@ export class RidCache {
                 
                 const rid = atob(fileName);
                 rids.push(rid);
+                if (rid.startsWith("orn:telescope")) telescopeCount++;
             }
             
-        this.length = rids.length;
+        this.telescopeCount = telescopeCount;
 
         return rids
     }
@@ -83,12 +85,12 @@ export class RidCache {
     async delete(rid: string) {
         if (await this.exists(rid)) {
             await this.app.vault.adapter.remove(this.filePathTo(rid));
-            this.length--;
+            if (rid.startsWith("orn:telescope")) this.telescopeCount--;
         }
 	}
 
     async drop() {
         await this.app.vault.adapter.rmdir(this.directoryPath(), true);
-        this.length = 0;
+        this.telescopeCount = 0;
     }
 }

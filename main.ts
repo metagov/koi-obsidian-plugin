@@ -5,11 +5,11 @@ import { TelescopeFormatter } from 'formatter';
 import { KoiInterface } from 'koi-interface';
 import { RidCache } from 'rid-cache';
 import { defaultTelescopeTemplate } from 'default-template';
+import { Effector } from 'effector';
 
 
 export default class KoiPlugin extends Plugin {
 	settings: KoiPluginSettings;
-	// statusBar: HTMLElement;
 	statusBarIconString: string;
 	statusBarIcon: HTMLElement;
 	statusBarText: HTMLElement;
@@ -18,6 +18,7 @@ export default class KoiPlugin extends Plugin {
 	fileFormatter: TelescopeFormatter;
 	koiInterface: KoiInterface;
 	ridCache: RidCache;
+	effector: Effector;
 
 	async onload() {
 		await this.loadSettings();
@@ -25,7 +26,8 @@ export default class KoiPlugin extends Plugin {
 
 		this.ridCache = new RidCache(this);
 		this.koiInterface = new KoiInterface(this);
-		this.fileFormatter = new TelescopeFormatter(this, this.ridCache);
+		this.effector = new Effector(this.koiInterface, this.ridCache);
+		this.fileFormatter = new TelescopeFormatter(this, this.ridCache, this.effector);
 		
 		this.syncMutex = new Mutex();
 		this.connected = true;
@@ -66,17 +68,6 @@ export default class KoiPlugin extends Plugin {
 			}
 		})
 
-
-		this.addRibbonIcon(
-			"refresh-cw",
-			"Manually sync with Telescope KOI",
-			() => {
-				this.refreshKoi();
-			}
-		)
-
-	
-
 		this.registerEvent(
 			this.app.vault.on('modify', async (file: TFile) => {
 				if (file.name !== this.settings.templatePath) return;
@@ -101,12 +92,6 @@ export default class KoiPlugin extends Plugin {
 		await this.updateStatusBar();
 		await this.fileFormatter.compileTemplate();
 
-		if (this.settings.koiApiSubscriberId === "") {
-			console.log("missing subcriber id");
-            await this.koiInterface.subscribeToEvents();
-			await this.refreshKoi();
-		}
-
 		console.log('setup');
 
 		this.syncKoi();
@@ -122,9 +107,6 @@ export default class KoiPlugin extends Plugin {
 		if (!this.settings.initialized) {
 			this.statusBarIconString = "circle-play";
 			this.statusBarIcon.ariaLabel = "Click to initialize KOI link!";
-		} else if (this.settings.paused) {
-			this.statusBarIconString = "circle-pause";
-			this.statusBarIcon.ariaLabel = "Syncing paused";
 		} else if (!this.connected) {
 			this.statusBarIconString = "refresh-cw-off";
 			this.statusBarIcon.ariaLabel = "Can't reach server";
@@ -140,7 +122,7 @@ export default class KoiPlugin extends Plugin {
 		if (this.statusBarIconString != prevIconString)
 			setIcon(this.statusBarIcon, this.statusBarIconString);
 
-		const numItems = this.ridCache.length;
+		const numItems = this.ridCache.telescopeCount;
 		this.statusBarText.setText(`${numItems} 🔭`);
 	}
 
@@ -152,26 +134,22 @@ export default class KoiPlugin extends Plugin {
     }
 
 	async handleIconClick() {
-		if (this.validateSettings()) {
-			if (this.settings.initialized) {
-				this.settings.paused = !this.settings.paused;
-				this.updateStatusBar();
-			} else {
-				console.log("refreshing");
-				this.settings.initialized = true;
-				await this.refreshKoi();
-			}
-		} else {
-			this.settings.paused = true;
+		if (!this.validateSettings())
 			new Notice("Please set an API key in the KOI plugin settings");
+
+		if (!this.settings.initialized) {
+			await this.koiInterface.subscribeToEvents();
+			this.settings.initialized = true;
+			await this.saveSettings();
 		}
-		await this.saveSettings();
+
+		await this.refreshKoi();
 	}
 
 	async syncKoi() {
 		let events = [];
 
-		if (this.settings.paused || !this.settings.initialized) return;
+		if (!this.settings.initialized) return;
 		if (this.syncMutex.isLocked()) return;
 
 		if (!this.validateSettings()) {
@@ -208,13 +186,15 @@ export default class KoiPlugin extends Plugin {
 					const bundle = await this.koiInterface.getObject(event.rid);
 					if (bundle) {
 						await this.ridCache.write(event.rid, bundle);
-						await this.fileFormatter.write(event.rid);
+						if (event.rid.startsWith("orn:telescope"))
+							await this.fileFormatter.write(event.rid);
 						this.updateStatusBar();
 					}
 					
 				} else if (event.event_type == 'FORGET') {
 					await this.ridCache.delete(event.rid);
-					await this.fileFormatter.delete(event.rid);
+					if (event.rid.startsWith("orn:telescope"))
+						await this.fileFormatter.delete(event.rid);
 					this.updateStatusBar();
 				}
 			}
@@ -243,8 +223,6 @@ export default class KoiPlugin extends Plugin {
 			const promises = [];
 
 			for (const manifest of remoteManifests) {
-				if (this.settings.paused) break;
-
 				remoteRids.push(manifest.rid);
 
 				const bundle = await this.ridCache.read(manifest.rid);
@@ -268,7 +246,7 @@ export default class KoiPlugin extends Plugin {
 			console.log("local rids", localRids);
 
 			for (const localRid of localRids) {
-				if (!remoteRids.includes(localRid)) {
+				if (!remoteRids.includes(localRid) && localRid.startsWith("orn:telescoped")) {
 					console.log("deleting", localRid);
 					await this.ridCache.delete(localRid);
 					await this.fileFormatter.delete(localRid);
