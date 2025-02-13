@@ -14,14 +14,14 @@ export class Effector {
     async dereference(rid: string): Promise<RidBundle | null> {
         const localBundle = await this.ridCache.read(rid);
         if (localBundle) {
-            console.log("hit cache");
+            // console.log("hit cache");
             return localBundle;
         }
 
         const remoteBundle = await this.koiInterface.getObject(rid);
         if (!remoteBundle) return null;
 
-        console.log("hit api");
+        // console.log("hit api");
         await this.ridCache.write(rid, remoteBundle);
         return remoteBundle;
     }

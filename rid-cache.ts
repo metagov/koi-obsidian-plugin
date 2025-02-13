@@ -16,7 +16,7 @@ export class RidCache {
     }
 
     directoryPath(): string {
-        return this.settings.koiSyncDirectoryPath + "/.cache";
+        return this.settings.koiSyncDirectoryPath + "/cache";
     }
 
     filePathTo(rid: string) {
@@ -36,7 +36,7 @@ export class RidCache {
             );
         }
 
-        if (!(await this.exists(rid)))
+        if (!(await this.exists(rid)) && rid.startsWith("orn:telescope"))
             this.telescopeCount++;
 
         await this.app.vault.adapter.write(

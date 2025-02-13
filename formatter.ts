@@ -35,7 +35,7 @@ export class TelescopeFormatter {
 		Handlebars.registerHelper("parseUsers", function (path: string, text: string) {
 			return text.replace(
 				/<@([A-Z0-9]+)>/g,
-				(match, userId) => path.replace("$userId", userId).replace("$userName", this.userNameLookup[userId] || userId)
+				(match, userId) => path.replace(/\$userId/g, userId).replace(/\$userName/g, this.userNameLookup[userId] || userId)
 			)
 		})
 	}

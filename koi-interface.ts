@@ -26,7 +26,7 @@ export class KoiInterface {
             return resp.json;
         } catch (err) {
             this.plugin.connected = (err.status === 404);
-            console.log(path);
+            // console.log(path);
             throw err;
         }
     }

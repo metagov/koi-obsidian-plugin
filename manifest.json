@@ -1,11 +1,10 @@
 {
 	"id": "koi-obsidian-plugin",
-	"name": "KOI Obsidian Plugin",
+	"name": "KOI Sync",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"description": "Synchronizes data from a Slack Telescope instance using the KOI-net protocol.",
+	"author": "Luke Miller",
+	"authorUrl": "https://github.com/lukvmil",
+	"isDesktopOnly": true
 }

@@ -40,23 +40,21 @@ export default class KoiPlugin extends Plugin {
 			await this.handleIconClick();
 		});
 
-		window.p = this;
+		// this.addCommand({
+		// 	id: 'refresh-with-koi',
+		// 	name: 'Refresh with KOI',
+		// 	callback: async () => {
+		// 		await this.refreshKoi();
+		// 	}
+		// });
 
-		this.addCommand({
-			id: 'refresh-with-koi',
-			name: 'Refresh with KOI',
-			callback: async () => {
-				await this.refreshKoi();
-			}
-		});
-
-		this.addCommand({
-			id: 'drop-rid-cache',
-			name: 'Drop RID cache',
-			callback: async () => {
-				await this.ridCache.drop();
-			}
-		});
+		// this.addCommand({
+		// 	id: 'drop-rid-cache',
+		// 	name: 'Drop RID cache',
+		// 	callback: async () => {
+		// 		await this.ridCache.drop();
+		// 	}
+		// });
 
 		this.addCommand({
 			id: 'reformat-telescopes',
@@ -87,12 +85,12 @@ export default class KoiPlugin extends Plugin {
 	}
 
 	async setup() {
-		console.log("ready");
+		// console.log("ready");
 		await this.ridCache.readAllRids();
 		await this.updateStatusBar();
 		await this.fileFormatter.compileTemplate();
 
-		console.log('setup');
+		// console.log('setup');
 
 		this.syncKoi();
 		this.registerInterval(
@@ -156,7 +154,7 @@ export default class KoiPlugin extends Plugin {
 			this.updateStatusBar();
 			return;
 		}
-		console.log("syncing");
+		// console.log("syncing");
 
 		try {
 			events = await this.koiInterface.pollEvents();
@@ -171,16 +169,16 @@ export default class KoiPlugin extends Plugin {
 
 		if (events.length === 0) return;
 
-		console.log("attempting sync");
+		// console.log("attempting sync");
 		const release = await this.syncMutex.acquire();
 		this.updateStatusBar();
 
 		try {
-			console.log("acquired sync mutex");
-			console.log(`processing ${events.length} events`)
+			// console.log("acquired sync mutex");
+			// console.log(`processing ${events.length} events`)
 
 			for (const event of events) {
-				console.log(`${event.event_type}: ${event.rid}`);
+				// console.log(`${event.event_type}: ${event.rid}`);
 
 				if (event.event_type == 'NEW' || event.event_type == 'UPDATE') {
 					const bundle = await this.koiInterface.getObject(event.rid);
@@ -201,24 +199,24 @@ export default class KoiPlugin extends Plugin {
 		} finally {
 			release();
 			this.updateStatusBar();
-			console.log("released sync mutex");
+			// console.log("released sync mutex");
 		}
 	}
 
 	async refreshKoi() {
-		console.log("attempting refresh");
+		// console.log("attempting refresh");
 		const release = await this.syncMutex.acquire();
 		this.updateStatusBar();
 
 		try {
-			console.log("acquired sync mutex");
+			// console.log("acquired sync mutex");
 
 			const remoteManifests = await this.koiInterface.getManifests();
 			if (!remoteManifests) return;
 
 			const remoteRids: Array<string> = [];
 
-			console.log(`fetched ${remoteManifests.length} rids`);
+			// console.log(`fetched ${remoteManifests.length} rids`);
 
 			const promises = [];
 
@@ -227,7 +225,7 @@ export default class KoiPlugin extends Plugin {
 
 				const bundle = await this.ridCache.read(manifest.rid);
 				if (!bundle || JSON.stringify(bundle.manifest) !== JSON.stringify(manifest)) {
-					console.log("writing", manifest.rid);
+					// console.log("writing", manifest.rid);
 
 					const promise = this.koiInterface.getObject(manifest.rid)
 						.then((remoteBundle) => {
@@ -243,18 +241,18 @@ export default class KoiPlugin extends Plugin {
 			
 			await Promise.all(promises);
 			const localRids = await this.ridCache.readAllRids();
-			console.log("local rids", localRids);
+			// console.log("local rids", localRids);
 
 			for (const localRid of localRids) {
 				if (!remoteRids.includes(localRid) && localRid.startsWith("orn:telescoped")) {
-					console.log("deleting", localRid);
+					// console.log("deleting", localRid);
 					await this.ridCache.delete(localRid);
 					await this.fileFormatter.delete(localRid);
 					this.updateStatusBar();
 				}
 			}
 		} finally {
-			console.log("released sync mutex");
+			// console.log("released sync mutex");
 			release();
 			this.updateStatusBar();
 		}
