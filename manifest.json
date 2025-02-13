@@ -1,5 +1,5 @@
 {
-	"id": "koi-sync-plugin",
+	"id": "koi-sync",
 	"name": "KOI Sync",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
