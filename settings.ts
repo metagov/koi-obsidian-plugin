@@ -11,7 +11,7 @@ export interface KoiPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
-	koiApiUrl: "https://telescope-koi.lukvmil.com",
+	koiApiUrl: "",
 	koiApiKey: "",
 	koiApiSubscriberId: "",
 	koiSyncDirectoryPath: "telescope",

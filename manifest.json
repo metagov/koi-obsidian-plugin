@@ -1,5 +1,5 @@
 {
-	"id": "koi-obsidian-plugin",
+	"id": "koi-sync-plugin",
 	"name": "KOI Sync",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
