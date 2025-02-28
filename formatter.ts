@@ -118,7 +118,7 @@ export class TelescopeFormatter {
 		const file = this.getFileObject(rid);
 		if (file) {
 			// console.log("modified file");
-			await this.app.vault.modify(file, formattedOutput)
+			await this.app.vault.process(file, () => formattedOutput)
 		} else {
 			// console.log("created new file");
 			await this.app.vault.create(this.getFilePath(rid), formattedOutput)

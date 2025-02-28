@@ -56,7 +56,7 @@ export class RidCache {
         const file = this.getFileObject(rid);
         const bundleString = JSON.stringify(bundle);
         if (file) {
-            await this.app.vault.modify(file, bundleString);
+            await this.app.vault.process(file, () => bundleString);
         } else {
             await this.app.vault.create(this.getFilePath(rid), bundleString);
         }
