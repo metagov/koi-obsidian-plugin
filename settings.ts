@@ -5,7 +5,7 @@ export interface KoiPluginSettings {
 	koiApiUrl: string;
 	koiApiKey: string;
 	koiApiSubscriberId: string;
-	koiSyncDirectoryPath: string;
+	koiSyncFolderPath: string;
 	templatePath: string;
     initialized: boolean;
 }
@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
 	koiApiUrl: "",
 	koiApiKey: "",
 	koiApiSubscriberId: "",
-	koiSyncDirectoryPath: "telescope",
+	koiSyncFolderPath: "telescope",
 	templatePath: "telescope-template.md",
     initialized: false
 }
@@ -44,7 +44,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 }));
         
         new Setting(containerEl)
-            .setName('KOI API Key')
+            .setName('KOI API key')
             .setDesc('Key for accessing KOI API')
             .addText(text => text
                 .setPlaceholder('')
@@ -55,7 +55,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('KOI API Subscriber ID')
+            .setName('KOI API subscriber ID')
             .setDesc('Subscriber ID for receiving RID events (set automatically)')
             .addText(text => text
                 .setPlaceholder('')
@@ -64,13 +64,13 @@ export class KoiSettingTab extends PluginSettingTab {
             .setDisabled(true);
 
         new Setting(containerEl)
-            .setName('KOI Sync Directory Path')
+            .setName('Sync directory path')
             .setDesc('Directory used to store RID objects synced through KOI')
             .addText(text => text
                 .setPlaceholder('koi')
-                .setValue(this.plugin.settings.koiSyncDirectoryPath)
+                .setValue(this.plugin.settings.koiSyncFolderPath)
                 .onChange(async (value) => {
-                    this.plugin.settings.koiSyncDirectoryPath = value;
+                    this.plugin.settings.koiSyncFolderPath = value;
                     await this.plugin.saveSettings();
                 })
             )

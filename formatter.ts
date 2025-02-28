@@ -1,6 +1,5 @@
 import KoiPlugin from "main";
 import { App, normalizePath, stringifyYaml, TFile } from "obsidian";
-import { RidBundle } from "rid-lib-types";
 import type { KoiPluginSettings } from "settings";
 import * as Handlebars from 'handlebars';
 import { Notice } from "obsidian";
@@ -40,7 +39,7 @@ export class TelescopeFormatter {
 		})
 	}
 
-	async compileTemplate() {
+	async compileTemplate(): Promise<void> {
 		const file = this.app.vault.getFileByPath(
 			normalizePath(this.settings.templatePath));
 
@@ -53,19 +52,46 @@ export class TelescopeFormatter {
 		this.handleBarTemplate = Handlebars.compile(templateString);
 	}
 
-	fileName(rid: string) {
+	getFileName(rid: string): string {
 		return btoa(rid) + ".md";
 	};
 
-	filePathTo(rid: string) {
-		return this.settings.koiSyncDirectoryPath + "/" + this.fileName(rid);
+	getFilePath(rid: string): string {
+		return this.settings.koiSyncFolderPath + "/" + this.getFileName(rid);
 	}
 
-	async rewriteAll() {
-		for (const rid of (await this.cache.readAllRids())) {
-			if (!rid.startsWith("orn:telescoped:")) continue;
+	getFileObject(rid: string): TFile | null {
+		return this.app.vault.getFileByPath(
+			this.getFilePath(rid)
+		);
+	}
+
+	async rewriteAll(notice: Notice | null = null) {
+		const telescopeRids = this.cache.readAllRids()
+			.filter(str => str.startsWith("orn:telescoped"));
+		let count = 0;
+		for (const rid of telescopeRids) {
 			await this.write(rid);
+			count++;
+			if (notice) notice.setMessage(`Formatting telescopes... (${count}/${telescopeRids.length})`);
 		}
+		if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
+	}
+
+	async writeMultiple(rids: Array<string>) {
+		const telescopeRids = rids.filter(rid => rid.startsWith("orn:telescoped"));
+		const notice = new Notice("", 0);
+		let count = 0;
+		for (const rid of telescopeRids) {
+			await this.write(rid);
+			count++;
+			if (notice) notice.setMessage(`Formatting telescopes... (${count}/${telescopeRids.length})`);
+		}
+		if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
+
+		setTimeout(() => {
+			notice.hide();
+		}, 3000);
 	}
 
 	async write(rid: string) {
@@ -73,8 +99,8 @@ export class TelescopeFormatter {
 		if (!bundle) return;
 
 		const data = Object.assign({}, bundle.contents)
-		data.obsidian_filename = this.fileName(rid);
-		data.obsidian_filepath = this.filePathTo(rid);
+		data.obsidian_filename = this.getFileName(rid);
+		data.obsidian_filepath = this.getFilePath(rid);
 		const rawText = <string>bundle.contents.text;
 
 		const captureUserId = /<@([A-Z0-9]+)>/g;
@@ -89,14 +115,19 @@ export class TelescopeFormatter {
 
 		const formattedOutput = this.handleBarTemplate(data);
 		
-		await this.app.vault.adapter.write(
-			this.filePathTo(rid),
-			formattedOutput
-		);
+		const file = this.getFileObject(rid);
+		if (file) {
+			// console.log("modified file");
+			await this.app.vault.modify(file, formattedOutput)
+		} else {
+			// console.log("created new file");
+			await this.app.vault.create(this.getFilePath(rid), formattedOutput)
+		}
 	}
 
 	async delete(rid: string) {
-		await this.app.vault.adapter.remove(this.filePathTo(rid));
+		const file = this.getFileObject(rid);
+		if (file) await this.app.vault.delete(file);
 	}
 
 }

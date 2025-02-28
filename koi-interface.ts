@@ -43,6 +43,7 @@ export class KoiInterface {
     }
 
     async getObject(rid: string): Promise<RidBundle> {
+        // console.log("retrieving remote object", rid);
         return await this.callApi(`/object?rid=${rid}`);
     }
 
