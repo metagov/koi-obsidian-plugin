@@ -7,7 +7,8 @@ export type RidManifest = {
 export type RidEvent = {
     rid: string;
     event_type: string;
-    manifest?: RidManifest;
+    manifest: RidManifest;
+    contents: Record<string, unknown>;
 }
 
 export type RidBundle = {
