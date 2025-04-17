@@ -1,7 +1,7 @@
 import KoiPlugin from "main";
 import { App, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import type { KoiPluginSettings } from "settings";
-import type { RidBundle } from "rid-lib-types";
+import { Bundle } from "./bundle";
 
 export class RidCache {
     plugin: KoiPlugin;
@@ -35,7 +35,7 @@ export class RidCache {
         );
     }
 
-    async write(rid: string, bundle: RidBundle) {
+    async write(bundle: Bundle) {
         if (!this.app.vault.getFolderByPath(
             this.settings.koiSyncFolderPath)
         ) {
@@ -50,15 +50,15 @@ export class RidCache {
             );
         }
 
-        if (!this.exists(rid) && rid.startsWith("orn:telescope"))
+        if (!this.exists(bundle.rid) && bundle.rid.startsWith("orn:telescope"))
             this.telescopeCount++;
 
-        const file = this.getFileObject(rid);
+        const file = this.getFileObject(bundle.rid);
         const bundleString = JSON.stringify(bundle);
         if (file) {
             await this.app.vault.process(file, () => bundleString);
         } else {
-            await this.app.vault.create(this.getFilePath(rid), bundleString);
+            await this.app.vault.create(this.getFilePath(bundle.rid), bundleString);
         }
     }
 
@@ -66,7 +66,7 @@ export class RidCache {
         return this.getFileObject(rid) !== null;
     }
 
-    async read(rid: string): Promise<RidBundle | null> {
+    async read(rid: string): Promise<Bundle | null> {
         try {
             const file = this.getFileObject(rid);
             if (!file) return null;
@@ -116,7 +116,7 @@ export class RidCache {
             if (rid.startsWith("orn:telescope"))
                 this.telescopeCount--;
         }
-	}
+    }
 
     async drop() {
         const folder = this.getFolderObject();

@@ -6,6 +6,7 @@ import { KoiInterface } from 'koi-interface';
 import { RidCache } from 'rid-cache';
 import { defaultTelescopeTemplate } from 'default-template';
 import { Effector } from 'effector';
+import { EventsPayload } from 'koi-net-api-models';
 
 
 export default class KoiPlugin extends Plugin {
@@ -62,7 +63,7 @@ export default class KoiPlugin extends Plugin {
 			name: 'Reformat telescopes from template',
 			callback: async () => {
 				await this.fileFormatter.writeMultiple(
-					this.ridCache.readAllRids()
+					this.ridCache.listRids()
 				);
 			}
 		})
@@ -92,7 +93,7 @@ export default class KoiPlugin extends Plugin {
 		}
 
 		// console.log("ready");
-		this.ridCache.readAllRids();
+		this.ridCache.listRids();
 		await this.updateStatusBar();
 		await this.fileFormatter.compileTemplate();
 
@@ -147,13 +148,11 @@ export default class KoiPlugin extends Plugin {
 			await this.saveSettings();
 		}
 
-		this.ridCache.readAllRids();
+		this.ridCache.listRids();
 		await this.refreshKoi();
 	}
 
 	async syncKoi() {
-		let events = [];
-
 		if (!this.settings.initialized) return;
 		if (this.syncMutex.isLocked()) return;
 
@@ -163,18 +162,35 @@ export default class KoiPlugin extends Plugin {
 		}
 		// console.log("syncing");
 
+		let resp: EventsPayload;
 		try {
-			events = await this.koiInterface.pollEvents();
+			resp = await this.koiInterface.pollEvents({
+				"rid": "",
+				"limit": 50
+			});
 		} catch (err) {
 			if (err.status !== 404) throw err;
-			await this.koiInterface.subscribeToEvents();
+
+			// TODO: edge proposal
+			await this.koiInterface.broadcastEvents({
+				"events": [
+					{
+						"rid": "",
+						"event_type": "NEW",
+						"manifest": {
+
+						},
+						"contents": {}
+					}
+				]
+			});
 			await this.refreshKoi();
 			return;
 		} finally {
 			this.updateStatusBar();
 		}
 
-		if (events.length === 0) return;
+		if (resp.events.length === 0) return;
 
 		// console.log("attempting sync");
 		const release = await this.syncMutex.acquire();
@@ -259,7 +275,7 @@ export default class KoiPlugin extends Plugin {
 			
 			await Promise.all(promises);
 
-			for (const localRid of this.ridCache.readAllRids()) {
+			for (const localRid of this.ridCache.listRids()) {
 				if (!remoteRids.includes(localRid) && localRid.startsWith("orn:telescoped")) {
 					console.log("deleting", localRid);
 					await this.ridCache.delete(localRid);

@@ -18,7 +18,7 @@ export class Effector {
             return localBundle;
         }
 
-        const remoteBundle = await this.koiInterface.getObject(rid);
+        const remoteBundle = (await this.koiInterface.fetchBundles({"rids": [rid]})).bundles[0];
         if (!remoteBundle) return null;
 
         // console.log("hit api", rid);

@@ -67,7 +67,7 @@ export class TelescopeFormatter {
 	}
 
 	async rewriteAll(notice: Notice | null = null) {
-		const telescopeRids = this.cache.readAllRids()
+		const telescopeRids = this.cache.listRids()
 			.filter(str => str.startsWith("orn:telescoped"));
 		let count = 0;
 		for (const rid of telescopeRids) {
