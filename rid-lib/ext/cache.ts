@@ -1,32 +1,24 @@
 import KoiPlugin from "main";
 import { App, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
-import type { KoiPluginSettings } from "settings";
 import { Bundle } from "./bundle";
 
-export class RidCache {
-    plugin: KoiPlugin;
+export class Cache {
     app: App;
-    settings: KoiPluginSettings;
-    telescopeCount: number = 0;
+    directoryPath: string;
 
-    constructor(plugin: KoiPlugin) {
-        this.plugin = plugin;
+    constructor(plugin: KoiPlugin, directoryPath: string) {
         this.app = plugin.app;
-        this.settings = plugin.settings;
-    }
-
-    getFolderPath(): string {
-        return this.settings.koiSyncFolderPath + "/cache";
+        this.directoryPath = directoryPath + "/cache";
     }
 
     getFolderObject(): TFolder | null {
         return this.app.vault.getFolderByPath(
-            this.getFolderPath()
+            this.directoryPath
         );
     }
 
     getFilePath(rid: string) {
-        return this.getFolderPath() + `/${btoa(rid)}.json`;
+        return `${this.directoryPath}/${btoa(rid)}.json`;
     }
 
     getFileObject(rid: string) {
@@ -35,31 +27,20 @@ export class RidCache {
         );
     }
 
-    async write(bundle: Bundle) {
-        if (!this.app.vault.getFolderByPath(
-            this.settings.koiSyncFolderPath)
-        ) {
-            await this.app.vault.createFolder(
-                this.settings.koiSyncFolderPath
-            )
-        }
-
-        if (!this.getFolderObject()) {
-            await this.app.vault.createFolder(
-                this.getFolderPath()
-            );
-        }
-
-        if (!this.exists(bundle.rid) && bundle.rid.startsWith("orn:telescope"))
-            this.telescopeCount++;
+    async write(bundle: Bundle): Promise<Bundle> {
+        if (!this.app.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject())
+            await this.app.vault.createFolder(this.directoryPath)
 
         const file = this.getFileObject(bundle.rid);
         const bundleString = JSON.stringify(bundle);
+
         if (file) {
             await this.app.vault.process(file, () => bundleString);
         } else {
             await this.app.vault.create(this.getFilePath(bundle.rid), bundleString);
         }
+
+        return bundle;
     }
 
     exists(rid: string): boolean {
@@ -77,12 +58,9 @@ export class RidCache {
         } 
     }
 
-    listRids(): Array<string> {
+    listRids(ridTypes: Array<string> | null = null): Array<string> {
         const folder = this.getFolderObject();
-        if (!folder) {
-            this.telescopeCount = 0;
-            return [];
-        }
+        if (!folder) return [];
 
         let telescopeCount = 0;
         const rids: Array<string> = [];
@@ -91,36 +69,35 @@ export class RidCache {
         Vault.recurseChildren(
             folder, 
             (file: TAbstractFile) => {
-                if (file instanceof TFile) 
-                    files.push(file);
+                if (file instanceof TFile) files.push(file);
             }
         )
 
-        // console.log(files.length, "files in cache");
-
         for (const file of files) {
             const rid = atob(file.basename);
-            rids.push(rid);
-            if (rid.startsWith("orn:telescope")) telescopeCount++;
-                // console.log("mid read count", telescopeCount);
+
+            if (Array.isArray(ridTypes)) {
+                for (const ridType of ridTypes) {
+                    if (rid.startsWith(ridType)) {
+                        rids.push(rid);
+                        continue;
+                    }
+                }
+            } else {
+                rids.push(rid);
+            }
         }
             
-        this.telescopeCount = telescopeCount;
         return rids
     }
 
     async delete(rid: string) {
         const file = this.getFileObject(rid);
-        if (file) {
-            await this.app.vault.delete(file);
-            if (rid.startsWith("orn:telescope"))
-                this.telescopeCount--;
-        }
+        if (file) await this.app.vault.delete(file);
     }
 
     async drop() {
         const folder = this.getFolderObject();
         if (folder) await this.app.vault.delete(folder, true);
-        this.telescopeCount = 0;
     }
 }
