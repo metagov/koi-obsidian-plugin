@@ -1,6 +1,6 @@
 import { KoiInterface } from "koi-interface";
 import { RidCache } from "rid-cache";
-import { RidBundle } from "rid-lib-types";
+import { RidBundle } from "telescope-types";
 
 export class Effector {
     koiInterface: KoiInterface;

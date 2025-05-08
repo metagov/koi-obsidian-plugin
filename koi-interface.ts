@@ -1,3 +1,5 @@
+/*
+
 import { requestUrl } from 'obsidian';
 import type KoiPlugin from "main";
 import type { KoiPluginSettings } from "settings";
@@ -12,27 +14,7 @@ export class KoiInterface {
         this.settings = plugin.settings;
     }
 
-    async callApi(
-        path: string, 
-        req?: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq
-    ) {
-        try {
-            const resp = await requestUrl({
-                url: this.settings.koiApiUrl + path,
-                headers: {
-                    "X-API-Key": this.settings.koiApiKey
-                },
-                method: "POST",
-                body: req ? JSON.stringify(req) : undefined
-            });
-            this.plugin.connected = true;
-            return resp.json;
-        } catch (err) {
-            this.plugin.connected = (err.status === 404);
-            // console.log(path);
-            throw err;
-        }
-    }
+    
 
     // async subscribeToEvents() {
     //     const data = await this.callApi("/events/subscribe", "POST");
@@ -78,3 +60,5 @@ export class KoiInterface {
         return await this.callApi(FETCH_BUNDLES_PATH, req);
     }
 }
+
+*/

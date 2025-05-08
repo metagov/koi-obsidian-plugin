@@ -1,7 +1,7 @@
 import KoiPlugin from "main";
 import { App, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import type { KoiPluginSettings } from "settings";
-import type { RidBundle } from "rid-lib-types";
+import type { RidBundle } from "telescope-types";
 
 export class RidCache {
     plugin: KoiPlugin;

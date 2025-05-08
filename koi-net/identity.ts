@@ -1,20 +1,15 @@
-// import { Cache } from "rid-lib/ext/cache";
-// import { NodeProfile } from "./protocol/node";
+import { NodeProfileSchema } from "./protocol/node";
 
-// type NodeIdentityModel = {
-//     rid: string,
-//     profiel: NodeProfile
-// }
 
-// class NodeIdentity {
-//     name: string;
+export class NodeIdentity {
+    rid: string;
+    profile: NodeProfileSchema;
 
-//     constructor({name, profile, cache, filePath}: {
-//         name: string,
-//         profile: NodeProfile,
-//         cache: Cache,
-//         filePath: string
-//     }) {
-//         this.name = name;
-//     }   
-// }
+    constructor({rid, profile}: {
+        rid: string,
+        profile: NodeProfileSchema,
+    }) {
+        this.rid = rid;
+        this.profile = profile;
+    }
+}

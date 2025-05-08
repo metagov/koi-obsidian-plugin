@@ -19,17 +19,18 @@ import {
 import { requestUrl } from "obsidian";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { z } from "zod";
+import { KoiPluginSettings } from "settings";
 
 export class RequestHandler {
     cache?: Cache;
-    apiKey?: string;
+    settings: KoiPluginSettings;
 
-    constructor({cache, apiKey}: {
+    constructor({cache, settings}: {
         cache?: Cache,
-        apiKey?: string
+        settings: KoiPluginSettings
     }) {
         this.cache = cache;
-        this.apiKey = apiKey;
+        this.settings = settings;
     }
 
     async makeRequest<T>({url, req, respModel}: {
@@ -39,8 +40,8 @@ export class RequestHandler {
    }) {
         let headers: Record<string, string>;
 
-        if (this.apiKey) {
-            headers = {"X-API-Key": this.apiKey};
+        if (this.settings.koiApiKey) {
+            headers = {"X-API-Key": this.settings.koiApiKey};
         } else {
             headers = {};
         }

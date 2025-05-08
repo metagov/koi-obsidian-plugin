@@ -1,33 +1,44 @@
-import { Plugin, TFile, setIcon, Notice, setTooltip } from 'obsidian';
+import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting } from 'obsidian';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
-import { KoiInterface } from 'koi-interface';
 import { RidCache } from 'rid-cache';
 import { defaultTelescopeTemplate } from 'default-template';
 import { Effector } from 'effector';
-import { EventsPayload } from 'koi-net-api-models';
+import { RequestHandler } from 'koi-net/network/request_handlers';
+import { createNodeRid } from 'koi-net/protocol/node';
+import { NodeInterface } from 'koi-net/core';
+import { Cache } from 'rid-lib/ext/cache';
 
 
 export default class KoiPlugin extends Plugin {
 	settings: KoiPluginSettings;
+	cache: Cache;
+	node: NodeInterface;
+
 	statusBarIconString: string;
 	statusBarIcon: HTMLElement;
 	statusBarText: HTMLElement;
 	connected: boolean;
 	syncMutex: Mutex;
 	fileFormatter: TelescopeFormatter;
-	koiInterface: KoiInterface;
 	ridCache: RidCache;
 	effector: Effector;
+	reqHandler: RequestHandler;
 
 	async onload() {
+		console.log("hello world!");
+
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
+		
+		this.cache = new Cache(this, )
+
+		this.node = new NodeInterface({
+
+		});
 
 		this.ridCache = new RidCache(this);
-		this.koiInterface = new KoiInterface(this);
-		this.effector = new Effector(this.koiInterface, this.ridCache);
 		this.fileFormatter = new TelescopeFormatter(this, this.ridCache, this.effector);
 		
 		this.syncMutex = new Mutex();
@@ -37,9 +48,10 @@ export default class KoiPlugin extends Plugin {
 		this.statusBarIcon = this.addStatusBarItem();
 		this.statusBarIcon.addClass("koi-status-icon");
 		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
-		this.statusBarIcon.addEventListener("click", async () => {
-			await this.handleIconClick();
-		});
+
+		this.reqHandler = new RequestHandler({});
+		
+		window.plugin = this;
 
 
 		// this.addCommand({
@@ -57,6 +69,43 @@ export default class KoiPlugin extends Plugin {
 		// 		await this.ridCache.drop();
 		// 	}
 		// });
+
+		class ExampleModal extends Modal {
+			constructor(app: App, onSubmit: (result: string) => void) {
+				super(app);
+				this.setContent("Set up your KOI node!");
+				let nodeName = "";
+			
+				new Setting(this.contentEl)
+					.setName('Node name:')
+					.addText((text) =>
+						text.onChange((value) => {
+							nodeName = value;
+						}));
+				
+				new Setting(this.contentEl)
+					.addButton((btn) =>
+						btn
+							.setButtonText("Submit")
+							.setCta()
+							.onClick(() => {
+								this.close();
+								onSubmit(nodeName);
+							}));
+			}
+		}
+
+		this.addCommand({
+			id: 'set-node-rid',
+			name: 'Set KOI-net node RID',
+			callback: async () => {
+				new ExampleModal(this.app, (name) => {
+					let nodeRid = createNodeRid(name);
+					this.settings.nodeRid = nodeRid;
+					new Notice(`Node RID set to \`${nodeRid}\``);
+				}).open();
+			}
+		})
 
 		this.addCommand({
 			id: 'reformat-telescopes',
@@ -78,12 +127,11 @@ export default class KoiPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			this.setup();
 		})
-
-		
 	}
 
 	async setup() {
-		const templateFile = this.app.vault.getFileByPath(this.settings.templatePath);
+		const templateFile = this.app.vault.getFileByPath(
+			this.settings.templatePath);
 		if (!templateFile) {
 			await this.app.vault.create(
 				this.settings.templatePath,
@@ -94,204 +142,10 @@ export default class KoiPlugin extends Plugin {
 
 		// console.log("ready");
 		this.ridCache.listRids();
-		await this.updateStatusBar();
 		await this.fileFormatter.compileTemplate();
-
-		// console.log('setup');
-
-		this.syncKoi();
-		this.registerInterval(
-			window.setInterval(() => this.syncKoi(), 5 * 1000)
-		);
 	}
 
-	async updateStatusBar() {
-		let syncing = this.syncMutex.isLocked();
-		const prevIconString = this.statusBarIconString;
-		
-		if (!this.settings.initialized) {
-			this.statusBarIconString = "circle-play";
-			setTooltip(this.statusBarIcon, "Click to initialize KOI link!");
-		} else if (!this.connected) {
-			this.statusBarIconString = "refresh-cw-off";
-			setTooltip(this.statusBarIcon, "Can't reach server");
-		} else if (syncing) {
-			this.statusBarIconString = "refresh-cw";
-			setTooltip(this.statusBarIcon, "Syncing...");
-		} else {
-			this.statusBarIconString = "circle-check";
-			setTooltip(this.statusBarIcon, "Synced!");
-		}
-
-
-		if (this.statusBarIconString != prevIconString)
-			setIcon(this.statusBarIcon, this.statusBarIconString);
-
-		const numItems = this.ridCache.telescopeCount;
-		this.statusBarText.setText(`${numItems} 🔭`);
-	}
-
-    validateSettings(): boolean {
-        return (
-            this.settings.koiApiUrl !== "" &&
-            this.settings.koiApiKey !== ""
-        );
-    }
-
-	async handleIconClick() {
-		if (!this.validateSettings())
-			new Notice("Please set an API key in the KOI plugin settings");
-
-		if (!this.settings.initialized) {
-			await this.koiInterface.subscribeToEvents();
-			this.settings.initialized = true;
-			await this.saveSettings();
-		}
-
-		this.ridCache.listRids();
-		await this.refreshKoi();
-	}
-
-	async syncKoi() {
-		if (!this.settings.initialized) return;
-		if (this.syncMutex.isLocked()) return;
-
-		if (!this.validateSettings()) {
-			this.updateStatusBar();
-			return;
-		}
-		// console.log("syncing");
-
-		let resp: EventsPayload;
-		try {
-			resp = await this.koiInterface.pollEvents({
-				"rid": "",
-				"limit": 50
-			});
-		} catch (err) {
-			if (err.status !== 404) throw err;
-
-			// TODO: edge proposal
-			await this.koiInterface.broadcastEvents({
-				"events": [
-					{
-						"rid": "",
-						"event_type": "NEW",
-						"manifest": {
-
-						},
-						"contents": {}
-					}
-				]
-			});
-			await this.refreshKoi();
-			return;
-		} finally {
-			this.updateStatusBar();
-		}
-
-		if (resp.events.length === 0) return;
-
-		// console.log("attempting sync");
-		const release = await this.syncMutex.acquire();
-		this.updateStatusBar();
-
-		try {
-			// console.log("acquired sync mutex");
-			// console.log(`processing ${events.length} events`)
-
-			for (const event of events) {
-				// console.log(`${event.event_type}: ${event.rid}`);
-
-				if (event.event_type == 'NEW' || event.event_type == 'UPDATE') {
-					const bundle = await this.koiInterface.getObject(event.rid);
-					if (bundle) {
-						await this.ridCache.write(event.rid, bundle);
-						if (event.rid.startsWith("orn:telescope"))
-							await this.fileFormatter.write(event.rid);
-						this.updateStatusBar();
-					}
-					
-				} else if (event.event_type == 'FORGET') {
-					await this.ridCache.delete(event.rid);
-					if (event.rid.startsWith("orn:telescope"))
-						await this.fileFormatter.delete(event.rid);
-					this.updateStatusBar();
-				}
-			}
-		} finally {
-			release();
-			this.updateStatusBar();
-			// console.log("released sync mutex");
-		}
-	}
-
-	async refreshKoi() {
-		// console.log("attempting refresh");
-		const release = await this.syncMutex.acquire();
-		this.updateStatusBar();
-
-		const updatedRids: Array<string> = [];
-
-		try {
-			// console.log("acquired sync mutex");
-
-			const remoteManifests = await this.koiInterface.getManifests();
-			if (!remoteManifests) return;
-			
-			const remoteRids: Array<string> = [];
-
-			// console.log(`fetched ${remoteManifests.length} rids`);
-
-			const promises = [];
-
-			for (const manifest of remoteManifests) {
-				if (!manifest.rid.startsWith("orn:telescoped")) continue;
-				remoteRids.push(manifest.rid);
-
-				const bundle = await this.ridCache.read(manifest.rid);
-				if (!bundle || JSON.stringify(bundle.manifest) !== JSON.stringify(manifest)) {
-					updatedRids.push(manifest.rid);
-
-					const promise = this.koiInterface.getObject(manifest.rid)
-						.then(async (remoteBundle) => {
-							if (!remoteBundle) {
-								console.log("didn't receive remote bundle");
-								return;
-							};
-							// console.log("writing", manifest.rid);
-
-							await this.ridCache.write(manifest.rid, remoteBundle);
-							// await this.fileFormatter.write(manifest.rid);
-							await this.updateStatusBar();
-						})
-						.catch((reason) => {
-							// console.log(reason);
-						});
-
-					promises.push(promise);
-				}
-			}
-			
-			await Promise.all(promises);
-
-			for (const localRid of this.ridCache.listRids()) {
-				if (!remoteRids.includes(localRid) && localRid.startsWith("orn:telescoped")) {
-					console.log("deleting", localRid);
-					await this.ridCache.delete(localRid);
-					// await this.fileFormatter.delete(localRid);
-					this.updateStatusBar();
-				}
-			}
-		} finally {
-			// console.log("released sync mutex");
-			release();
-			this.updateStatusBar();
-		}
-		if (updatedRids.length > 0)
-			await this.fileFormatter.writeMultiple(updatedRids);
-	}
-
+	
 	async loadSettings() {
 		const loadedSettings = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);

@@ -2,20 +2,22 @@ import { App, PluginSettingTab, Setting } from 'obsidian';
 import type KoiPlugin from "main";
 
 export interface KoiPluginSettings {
-	koiApiUrl: string;
-	koiApiKey: string;
-	koiApiSubscriberId: string;
+    nodeRid: string;
+    firstContact: string;
+    koiApiKey: string | null;
 	koiSyncFolderPath: string;
 	templatePath: string;
+    nodeName: string;
     initialized: boolean;
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
-	koiApiUrl: "",
+	nodeRid: "",
+    firstContact: "",
 	koiApiKey: "",
-	koiApiSubscriberId: "",
 	koiSyncFolderPath: "telescope",
 	templatePath: "telescope-template.md",
+    nodeName: "",
     initialized: false
 }
 
@@ -31,37 +33,36 @@ export class KoiSettingTab extends PluginSettingTab {
         const {containerEl} = this;
 
         containerEl.empty();
+        
+        new Setting(containerEl)
+            .setName('KOI-net node RID')
+            .setDesc('The RID of this plugin\'s KOI-net node')
+            .addText(text => text
+                .setPlaceholder('')
+                .setValue(this.plugin.settings.nodeRid))
+            .setDisabled(true);
 
         new Setting(containerEl)
-            .setName('KOI API URL')
-            .setDesc('URL of the KOI API this plugin will communicate with')
+            .setName('KOI-net first contact')
+            .setDesc('URL of the KOI-net node this plugin will establish initial communication with')
             .addText(text => text
                 .setPlaceholder('https://...')
-                .setValue(this.plugin.settings.koiApiUrl)
+                .setValue(this.plugin.settings.firstContact)
                 .onChange(async (value) => {
-                    this.plugin.settings.koiApiUrl = value;
+                    this.plugin.settings.firstContact = value;
                     await this.plugin.saveSettings();
                 }));
         
         new Setting(containerEl)
-            .setName('KOI API key')
-            .setDesc('Key for accessing KOI API')
+            .setName('KOI-net API key')
+            .setDesc('Optional API key for accessing protected KOI-net nodes')
             .addText(text => text
-                .setPlaceholder('')
-                .setValue(this.plugin.settings.koiApiKey)
+                .setValue(this.plugin.settings.koiApiKey || "")
                 .onChange(async (value) => {
-                    this.plugin.settings.koiApiKey = value;
+                    this.plugin.settings.koiApiKey = (value === "") ? null : value;
+                    console.log(this.plugin.settings.koiApiKey);
                     await this.plugin.saveSettings();
                 }));
-
-        new Setting(containerEl)
-            .setName('KOI API subscriber ID')
-            .setDesc('Subscriber ID for receiving RID events (set automatically)')
-            .addText(text => text
-                .setPlaceholder('')
-                .setValue(this.plugin.settings.koiApiSubscriberId
-            ))
-            .setDisabled(true);
 
         new Setting(containerEl)
             .setName('Sync directory path')
