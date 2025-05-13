@@ -2,17 +2,17 @@ import KoiPlugin from "main";
 import { App, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import { Bundle } from "./bundle";
 
-export class Cache {
-    app: App;
+export class KoiCache {
+    vault: Vault;
     directoryPath: string;
 
-    constructor(plugin: KoiPlugin, directoryPath: string) {
-        this.app = plugin.app;
+    constructor(vault: Vault, directoryPath: string) {
+        this.vault = vault;
         this.directoryPath = directoryPath + "/cache";
     }
 
     getFolderObject(): TFolder | null {
-        return this.app.vault.getFolderByPath(
+        return this.vault.getFolderByPath(
             this.directoryPath
         );
     }
@@ -22,22 +22,22 @@ export class Cache {
     }
 
     getFileObject(rid: string) {
-        return this.app.vault.getFileByPath(
+        return this.vault.getFileByPath(
             this.getFilePath(rid)
         );
     }
 
     async write(bundle: Bundle): Promise<Bundle> {
-        if (!this.app.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject())
-            await this.app.vault.createFolder(this.directoryPath)
+        if (!this.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject())
+            await this.vault.createFolder(this.directoryPath)
 
         const file = this.getFileObject(bundle.rid);
         const bundleString = JSON.stringify(bundle);
 
         if (file) {
-            await this.app.vault.process(file, () => bundleString);
+            await this.vault.process(file, () => bundleString);
         } else {
-            await this.app.vault.create(this.getFilePath(bundle.rid), bundleString);
+            await this.vault.create(this.getFilePath(bundle.rid), bundleString);
         }
 
         return bundle;
@@ -51,7 +51,7 @@ export class Cache {
         try {
             const file = this.getFileObject(rid);
             if (!file) return null;
-            const jsonString = await this.app.vault.read(file);
+            const jsonString = await this.vault.read(file);
             return JSON.parse(jsonString);
         } catch (err) {
             return null;
@@ -93,11 +93,11 @@ export class Cache {
 
     async delete(rid: string) {
         const file = this.getFileObject(rid);
-        if (file) await this.app.vault.delete(file);
+        if (file) await this.vault.delete(file);
     }
 
     async drop() {
         const folder = this.getFolderObject();
-        if (folder) await this.app.vault.delete(folder, true);
+        if (folder) await this.vault.delete(folder, true);
     }
 }

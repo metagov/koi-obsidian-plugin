@@ -1,16 +1,16 @@
 import KoiPlugin from "main";
-import { Cache } from "rid-lib/ext/cache";
+import { KoiCache } from "rid-lib/ext/cache";
 import { NodeIdentity } from "./identity";
 import { RequestHandler } from "./network/request_handlers";
 
 export class NodeInterface {
-    cache: Cache;
+    cache: KoiCache;
     plugin: KoiPlugin;
     identity: NodeIdentity;
     requestHandler: RequestHandler;
     
     constructor({cache, plugin}: {
-        cache: Cache,
+        cache: KoiCache,
         plugin: KoiPlugin
     }) {
         this.cache = cache;
@@ -27,8 +27,17 @@ export class NodeInterface {
             }
         })
 
-        this.requestHandler = new RequestHandler({
-            cache, settings: this.plugin.settings
-        })
+        // this.requestHandler = new RequestHandler({
+        //     cache: this.cache, 
+        //     settings: this.plugin.settings
+        // })
+    }
+
+    start() {
+
+    }
+
+    stop() {
+        
     }
 }

@@ -8,12 +8,13 @@ import { Effector } from 'effector';
 import { RequestHandler } from 'koi-net/network/request_handlers';
 import { createNodeRid } from 'koi-net/protocol/node';
 import { NodeInterface } from 'koi-net/core';
-import { Cache } from 'rid-lib/ext/cache';
+import { KoiCache } from 'rid-lib/ext/cache';
+import { DirectedGraph } from 'graphology';
 
 
 export default class KoiPlugin extends Plugin {
 	settings: KoiPluginSettings;
-	cache: Cache;
+	cache: KoiCache;
 	node: NodeInterface;
 
 	statusBarIconString: string;
@@ -22,7 +23,6 @@ export default class KoiPlugin extends Plugin {
 	connected: boolean;
 	syncMutex: Mutex;
 	fileFormatter: TelescopeFormatter;
-	ridCache: RidCache;
 	effector: Effector;
 	reqHandler: RequestHandler;
 
@@ -32,14 +32,14 @@ export default class KoiPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
 		
-		this.cache = new Cache(this, )
+		this.cache = new KoiCache(this.app.vault, ".ridcache");
 
 		this.node = new NodeInterface({
-
+			cache: this.cache,
+			plugin: this
 		});
 
-		this.ridCache = new RidCache(this);
-		this.fileFormatter = new TelescopeFormatter(this, this.ridCache, this.effector);
+		this.fileFormatter = new TelescopeFormatter(this, this.cache, this.effector);
 		
 		this.syncMutex = new Mutex();
 		this.connected = true;
@@ -48,10 +48,10 @@ export default class KoiPlugin extends Plugin {
 		this.statusBarIcon = this.addStatusBarItem();
 		this.statusBarIcon.addClass("koi-status-icon");
 		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
-
-		this.reqHandler = new RequestHandler({});
 		
 		window.plugin = this;
+
+		window.graph = new DirectedGraph();
 
 
 		// this.addCommand({
@@ -112,7 +112,7 @@ export default class KoiPlugin extends Plugin {
 			name: 'Reformat telescopes from template',
 			callback: async () => {
 				await this.fileFormatter.writeMultiple(
-					this.ridCache.listRids()
+					this.cache.listRids()
 				);
 			}
 		})
@@ -141,7 +141,7 @@ export default class KoiPlugin extends Plugin {
 		}
 
 		// console.log("ready");
-		this.ridCache.listRids();
+		this.cache.listRids();
 		await this.fileFormatter.compileTemplate();
 	}
 

@@ -1,4 +1,4 @@
-import { Cache } from "rid-lib/ext/cache";
+import { KoiCache } from "rid-lib/ext/cache";
 import { 
     PollEventsReq, 
     FetchBundlesReq, 
@@ -20,16 +20,20 @@ import { requestUrl } from "obsidian";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { z } from "zod";
 import { KoiPluginSettings } from "settings";
+import { NetworkGraph } from "./graph";
 
 export class RequestHandler {
-    cache?: Cache;
+    cache: KoiCache;
+    graph: NetworkGraph;
     settings: KoiPluginSettings;
 
-    constructor({cache, settings}: {
-        cache?: Cache,
+    constructor({cache, graph, settings}: {
+        cache: KoiCache,
+        graph: NetworkGraph,
         settings: KoiPluginSettings
     }) {
         this.cache = cache;
+        this.graph = graph;
         this.settings = settings;
     }
 
@@ -63,23 +67,17 @@ export class RequestHandler {
         url?: string
     }): Promise<string> {
         if (nodeRid) {
-            if (!this.cache)
-                throw "no cache";
-            const bundle = await this.cache.read(nodeRid);
-            if (bundle === null)
+            const nodeProfile = await this.graph.getNodeProfile(nodeRid);
+            if (!nodeProfile)
                 throw "Node not found";
-            
-            const nodeProfile = NodeProfileSchema.safeParse(bundle.contents);
-            if (!nodeProfile.success)
-                throw "Failed to parse node profile";
 
-            if (nodeProfile.data.node_type !== NodeType.enum.FULL)
+            if (nodeProfile.node_type !== NodeType.enum.FULL)
                 throw "Can't query partial node";
 
-            if (!nodeProfile.data.base_url)
+            if (!nodeProfile.base_url)
                 throw "Missing base url in node profile";
 
-            return nodeProfile.data.base_url
+            return nodeProfile.base_url
 
         } else if (url) {
             return url;

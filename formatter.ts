@@ -3,19 +3,19 @@ import { App, normalizePath, stringifyYaml, TFile } from "obsidian";
 import type { KoiPluginSettings } from "settings";
 import * as Handlebars from 'handlebars';
 import { Notice } from "obsidian";
-import { RidCache } from "rid-cache";
 import { Effector } from "effector";
+import { KoiCache } from "rid-lib/ext/cache";
 
 
 export class TelescopeFormatter {
 	plugin: KoiPlugin;
 	app: App;
 	settings: KoiPluginSettings;
-	cache: RidCache;
+	cache: KoiCache;
 	effector: Effector;
 	handleBarTemplate: Handlebars.TemplateDelegate;
 
-	constructor(plugin: KoiPlugin, cache: RidCache, effector: Effector) {
+	constructor(plugin: KoiPlugin, cache: KoiCache, effector: Effector) {
 		this.plugin = plugin;
         this.app = plugin.app;
         this.settings = plugin.settings;
