@@ -1,7 +1,7 @@
 {
 	"id": "koi-sync",
 	"name": "KOI Sync",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "Synchronizes data from a Slack Telescope instance using the KOI-net protocol.",
 	"author": "Luke Miller",
