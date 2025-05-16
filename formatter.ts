@@ -24,13 +24,15 @@ export class TelescopeFormatter {
 
 		Handlebars.registerHelper("json", (data) => JSON.stringify(data));
 		Handlebars.registerHelper("yaml", (data) => stringifyYaml(data));
-		Handlebars.registerHelper("stringPrefix", (prefixLength: number, data: string) => {
-			if (data.length > prefixLength) {
-				return data.substring(0, prefixLength - 3) + "...";
-			} else {
-				return data;
-			}
-		});
+		Handlebars.registerHelper("stringPrefix", (prefixLength: number, data: string) =>
+			JSON.stringify(
+				((data.length > prefixLength) ? 
+					data.substring(0, prefixLength - 3) + "..." : 
+					data
+				).replace(/\s+/g, " ")
+			)
+		);
+
 		Handlebars.registerHelper("parseUsers", function (path: string, text: string) {
 			return text.replace(
 				/<@([A-Z0-9]+)>/g,
