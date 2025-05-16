@@ -1,13 +1,13 @@
 import KoiPlugin from "main";
 import { KoiCache } from "rid-lib/ext/cache";
 import { NodeIdentity } from "./identity";
-import { RequestHandler } from "./network/request_handlers";
+import { NetworkInterface } from "./network/interface";
 
 export class NodeInterface {
     cache: KoiCache;
     plugin: KoiPlugin;
     identity: NodeIdentity;
-    requestHandler: RequestHandler;
+    network: NetworkInterface;
     
     constructor({cache, plugin}: {
         cache: KoiCache,
@@ -25,7 +25,15 @@ export class NodeInterface {
                     state: []
                 }
             }
-        })
+        });
+
+        console.log(this.plugin.settings);
+
+        this.network = new NetworkInterface({
+            cache: this.cache,
+            identity: this.identity,
+            settings: this.plugin.settings
+        });
 
         // this.requestHandler = new RequestHandler({
         //     cache: this.cache, 
@@ -33,8 +41,24 @@ export class NodeInterface {
         // })
     }
 
-    start() {
+    async start(first_contact: string) {
+        const ridsPayload = await this.network.requestHandler.fetchRids({
+            url: first_contact,
+            req: {
+                rid_types: []
+            }
+        });
 
+        const bundlesPayload = await this.network.requestHandler.fetchBundles({
+            url: first_contact,
+            req: {
+                rids: ridsPayload.rids
+            }
+        });
+
+        for (const bundle of bundlesPayload.bundles) {
+            this.cache.write(bundle);
+        }
     }
 
     stop() {

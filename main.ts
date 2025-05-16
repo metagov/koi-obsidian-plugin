@@ -34,6 +34,8 @@ export default class KoiPlugin extends Plugin {
 		
 		this.cache = new KoiCache(this.app.vault, ".ridcache");
 
+		console.log(this.settings);
+
 		this.node = new NodeInterface({
 			cache: this.cache,
 			plugin: this
@@ -50,9 +52,6 @@ export default class KoiPlugin extends Plugin {
 		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
 		
 		window.plugin = this;
-
-		window.graph = new DirectedGraph();
-
 
 		// this.addCommand({
 		// 	id: 'refresh-with-koi',

@@ -16,14 +16,14 @@ export class NetworkInterface {
     pollEventQueue: Record<string, Array<Event>>;
     webhookEventQueue: Record<string, Array<Event>>;
 
-    constructor({cache, identity}: {
+    constructor({cache, identity, settings}: {
         cache: KoiCache,
         identity: NodeIdentity,
         settings: KoiPluginSettings
     }) {
         this.identity = identity;
         this.cache = cache;
-        this.settings = this.settings;
+        this.settings = settings;
 
         this.graph = new NetworkGraph(cache, identity);
         this.requestHandler = new RequestHandler({
