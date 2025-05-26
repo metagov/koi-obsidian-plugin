@@ -2,14 +2,12 @@ import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting } from 
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
-import { RidCache } from 'rid-cache';
 import { defaultTelescopeTemplate } from 'default-template';
 import { Effector } from 'effector';
 import { RequestHandler } from 'koi-net/network/request_handlers';
 import { createNodeRid } from 'koi-net/protocol/node';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
-import { DirectedGraph } from 'graphology';
 
 
 export default class KoiPlugin extends Plugin {
@@ -32,12 +30,9 @@ export default class KoiPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
 		
-		this.cache = new KoiCache(this.app.vault, ".ridcache");
-
 		console.log(this.settings);
 
 		this.node = new NodeInterface({
-			cache: this.cache,
 			plugin: this
 		});
 
@@ -52,6 +47,7 @@ export default class KoiPlugin extends Plugin {
 		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
 		
 		window.plugin = this;
+		window.node = this.node;
 
 		// this.addCommand({
 		// 	id: 'refresh-with-koi',
@@ -111,7 +107,7 @@ export default class KoiPlugin extends Plugin {
 			name: 'Reformat telescopes from template',
 			callback: async () => {
 				await this.fileFormatter.writeMultiple(
-					this.cache.listRids()
+					this.node.cache.listRids()
 				);
 			}
 		})
@@ -140,8 +136,22 @@ export default class KoiPlugin extends Plugin {
 		}
 
 		// console.log("ready");
-		this.cache.listRids();
+		this.node.cache.listRids();
 		await this.fileFormatter.compileTemplate();
+
+		await this.node.start();
+
+
+		this.registerInterval(
+			window.setInterval(async () => {
+				const events = await this.node.network.pollNeighbors();
+
+				for (const event of events) {
+					console.log(`Event: [${event.event_type}] ${event.rid}`);
+				}
+
+			}, 5 * 1000)
+		);
 	}
 
 	

@@ -1,3 +1,4 @@
+import { Bundle } from "rid-lib/ext/bundle";
 import { Manifest, ManifestSchema } from "rid-lib/ext/manifest";
 import { z } from "zod";
 
@@ -8,8 +9,8 @@ export type EventType = z.infer<typeof EventType>;
 export const EventSchema = z.object({
     rid: z.string(),
     event_type: EventType,
-    manifest: z.optional(ManifestSchema),
-    contents: z.optional(z.record(z.unknown()))
+    manifest: ManifestSchema.optional(),
+    contents: z.record(z.unknown()).optional()
 }).transform(obj => new Event(obj));
 
 export class Event {
@@ -32,5 +33,39 @@ export class Event {
 
     static validate(obj: Record<string, unknown>): Event {
         return EventSchema.parse(obj);
+    }
+
+    static fromBundle(event_type: EventType, bundle: Bundle): Event {
+        return new Event({
+            rid: bundle.manifest.rid,
+            event_type,
+            manifest: bundle.manifest,
+            contents: bundle.contents,
+        });
+    }
+
+    static fromManifest(event_type: EventType, manifest: Manifest): Event {
+        return new Event({
+            rid: manifest.rid,
+            event_type,
+            manifest,
+        });
+    }
+
+    static fromRID(event_type: EventType, rid: string): Event {
+        return new Event({
+            rid,
+            event_type,
+        });
+    }
+
+    get bundle(): Bundle | undefined {
+        if (this.manifest && this.contents) {
+            return new Bundle({
+                manifest: this.manifest,
+                contents: this.contents,
+            });
+        }
+        return undefined;
     }
 }

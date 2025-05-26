@@ -18,28 +18,27 @@ export class NetworkGraph {
     }
 
     async generate() {
-        console.debug('Generating network graph');
+        console.log('Generating network graph');
         this.dg.clear();
 
-        for (const rid of this.cache.listRids()) {
-            if (rid.startsWith("orn:koi-net.node")) {
-                this.dg.addNode(rid);
-                console.debug(`Added node ${rid}`);
-
-            } else if (rid.startsWith("orn:koi-net.edge")) {
-                const edgeProfile = await this.getEdgeProfile(rid);
-
-                if (!edgeProfile) {
-                    console.warn(`Failed to load ${rid}`);
-                    continue;
-                }
-                
-                this.dg.addEdge(edgeProfile.source, edgeProfile.target, { rid });
-                console.debug(`Added edge ${rid} (${edgeProfile.source} -> ${edgeProfile.target})`);
-            }
+        for (const rid of this.cache.listRids(["orn:koi-net.node"])) {
+            this.dg.addNode(rid);
+            console.log(`Added node ${rid}`);
         }
 
-        console.debug('Done');
+        for (const rid of this.cache.listRids(["orn:koi-net.edge"])) {
+            const edgeProfile = await this.getEdgeProfile(rid);
+
+            if (!edgeProfile) {
+                console.warn(`Failed to load ${rid}`);
+                continue;
+            }
+            
+            this.dg.addEdge(edgeProfile.source, edgeProfile.target, { rid });
+            console.log(`Added edge ${rid} (${edgeProfile.source} -> ${edgeProfile.target})`);
+        }
+
+        console.log('Done');
     }
 
     async getNodeProfile(rid: string): Promise<NodeProfileSchema | null> {

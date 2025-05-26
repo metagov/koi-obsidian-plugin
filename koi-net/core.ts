@@ -2,6 +2,11 @@ import KoiPlugin from "main";
 import { KoiCache } from "rid-lib/ext/cache";
 import { NodeIdentity } from "./identity";
 import { NetworkInterface } from "./network/interface";
+import { Bundle } from "rid-lib/ext/bundle";
+import { Manifest } from "rid-lib/ext/manifest";
+import { NodeProfileSchema } from "./protocol/node";
+import { Event, EventType } from "./protocol/event";
+import { EventsPayload, PollEventsReq } from "./protocol/api_models";
 
 export class NodeInterface {
     cache: KoiCache;
@@ -9,12 +14,15 @@ export class NodeInterface {
     identity: NodeIdentity;
     network: NetworkInterface;
     
-    constructor({cache, plugin}: {
-        cache: KoiCache,
+    constructor({plugin}: {
         plugin: KoiPlugin
     }) {
-        this.cache = cache;
         this.plugin = plugin;
+
+        this.cache = new KoiCache({
+            vault: this.plugin.app.vault, 
+            directoryPath: "_ridcache"
+        });
 
         this.identity = new NodeIdentity({
             rid: this.plugin.settings.nodeRid,
@@ -24,7 +32,8 @@ export class NodeInterface {
                     event: ["orn:obsidian.note"],
                     state: []
                 }
-            }
+            },
+            cache: this.cache
         });
 
         console.log(this.plugin.settings);
@@ -34,23 +43,18 @@ export class NodeInterface {
             identity: this.identity,
             settings: this.plugin.settings
         });
-
-        // this.requestHandler = new RequestHandler({
-        //     cache: this.cache, 
-        //     settings: this.plugin.settings
-        // })
     }
 
-    async start(first_contact: string) {
+    async start() {
         const ridsPayload = await this.network.requestHandler.fetchRids({
-            url: first_contact,
+            url: this.plugin.settings.firstContact,
             req: {
                 rid_types: []
             }
         });
 
         const bundlesPayload = await this.network.requestHandler.fetchBundles({
-            url: first_contact,
+            url: this.plugin.settings.firstContact,
             req: {
                 rids: ridsPayload.rids
             }
@@ -59,6 +63,29 @@ export class NodeInterface {
         for (const bundle of bundlesPayload.bundles) {
             this.cache.write(bundle);
         }
+
+        this.cache.write(
+            Bundle.generate({
+                rid: this.plugin.settings.nodeRid,
+                contents: this.identity.profile
+            })
+        );
+
+        this.network.graph.generate();
+    }
+
+    async handshake() {
+        const events = [
+            Event.fromRID(
+                EventType.enum.FORGET, this.identity.rid),
+            Event.fromBundle(
+                EventType.enum.NEW, await this.identity.bundle()),
+        ];
+
+        await this.network.requestHandler.broadcastEvents({
+            url: this.plugin.settings.firstContact,
+            req: { events }
+        });
     }
 
     stop() {

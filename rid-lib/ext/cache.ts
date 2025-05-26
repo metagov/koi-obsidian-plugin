@@ -6,9 +6,12 @@ export class KoiCache {
     vault: Vault;
     directoryPath: string;
 
-    constructor(vault: Vault, directoryPath: string) {
+    constructor({vault, directoryPath}: {
+        vault: Vault, 
+        directoryPath: string
+    }) {
         this.vault = vault;
-        this.directoryPath = directoryPath + "/cache";
+        this.directoryPath = directoryPath;
     }
 
     getFolderObject(): TFolder | null {
@@ -28,8 +31,10 @@ export class KoiCache {
     }
 
     async write(bundle: Bundle): Promise<Bundle> {
-        if (!this.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject())
-            await this.vault.createFolder(this.directoryPath)
+        if (!this.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject()) {
+            console.log("attempting to create folder");
+            await this.vault.createFolder(this.directoryPath);
+        }
 
         const file = this.getFileObject(bundle.rid);
         const bundleString = JSON.stringify(bundle);
@@ -62,7 +67,6 @@ export class KoiCache {
         const folder = this.getFolderObject();
         if (!folder) return [];
 
-        let telescopeCount = 0;
         const rids: Array<string> = [];
 
         const files: Array<TFile> = [];
@@ -75,7 +79,6 @@ export class KoiCache {
 
         for (const file of files) {
             const rid = atob(file.basename);
-
             if (Array.isArray(ridTypes)) {
                 for (const ridType of ridTypes) {
                     if (rid.startsWith(ridType)) {

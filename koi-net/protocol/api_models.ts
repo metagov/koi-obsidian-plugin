@@ -6,7 +6,7 @@ import { EventSchema } from "./event";
 
 export const PollEventsReq = z.object({
     rid: z.string(),
-    limit: z.number().default(0)
+    limit: z.number().default(0).nullable()
 });
 
 export const FetchRidsReq = z.object({

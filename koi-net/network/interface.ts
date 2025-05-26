@@ -4,6 +4,8 @@ import { NetworkGraph } from "./graph";
 import { RequestHandler } from "./request_handlers";
 import { Event } from "koi-net/protocol/event";
 import { KoiPluginSettings } from "settings";
+import { PollEventsReq } from "koi-net/protocol/api_models";
+import { NodeType } from "koi-net/protocol/node";
 
 
 export class NetworkInterface {
@@ -34,5 +36,28 @@ export class NetworkInterface {
 
         this.pollEventQueue = {};
         this.webhookEventQueue = {}
+    }
+
+    async pollNeighbors(): Promise<Array<Event>> {
+        const neighbors = await this.graph.getNeighbors();
+        const req = PollEventsReq.parse({ rid: this.identity.rid });
+
+        if (!neighbors && this.settings.firstContact) {
+            const payload = await this.requestHandler.pollEvents({
+                url: this.settings.firstContact, req
+            });
+            return payload.events;
+        }
+        
+        const events: Array<Event> = [];
+        for (const nodeRid of neighbors) {
+            const nodeProfile = await this.graph.getNodeProfile(nodeRid);
+            if (!nodeProfile || nodeProfile.node_type != NodeType.enum.FULL)
+                continue;
+
+            const payload = await this.requestHandler.pollEvents({ nodeRid, req });
+            events.push(...payload.events);
+        }
+        return events;
     }
 }
