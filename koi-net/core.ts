@@ -3,10 +3,8 @@ import { KoiCache } from "rid-lib/ext/cache";
 import { NodeIdentity } from "./identity";
 import { NetworkInterface } from "./network/interface";
 import { Bundle } from "rid-lib/ext/bundle";
-import { Manifest } from "rid-lib/ext/manifest";
-import { NodeProfileSchema } from "./protocol/node";
 import { Event, EventType } from "./protocol/event";
-import { EventsPayload, PollEventsReq } from "./protocol/api_models";
+
 
 export class NodeInterface {
     cache: KoiCache;

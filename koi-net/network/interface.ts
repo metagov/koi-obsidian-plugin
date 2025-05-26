@@ -6,6 +6,7 @@ import { Event } from "koi-net/protocol/event";
 import { KoiPluginSettings } from "settings";
 import { PollEventsReq } from "koi-net/protocol/api_models";
 import { NodeType } from "koi-net/protocol/node";
+import { EdgeType } from "koi-net/protocol/edge";
 
 
 export class NetworkInterface {
@@ -14,8 +15,6 @@ export class NetworkInterface {
     cache: KoiCache;
     graph: NetworkGraph;
     requestHandler: RequestHandler;
-    // response handler?
-    pollEventQueue: Record<string, Array<Event>>;
     webhookEventQueue: Record<string, Array<Event>>;
 
     constructor({cache, identity, settings}: {
@@ -34,7 +33,6 @@ export class NetworkInterface {
             settings: this.settings
         })
 
-        this.pollEventQueue = {};
         this.webhookEventQueue = {}
     }
 
@@ -59,5 +57,55 @@ export class NetworkInterface {
             events.push(...payload.events);
         }
         return events;
+    }
+
+    async pushEventTo({ event, node, flush = false }: {
+        event: Event,
+        node: string,
+        flush?: boolean
+    }) {
+        const nodeProfile = await this.graph.getNodeProfile(node);
+        if (!nodeProfile) {
+            console.log("Node unknown to me");
+            return;
+        }
+        if (nodeProfile.node_type != NodeType.enum.FULL) {
+            console.log("Can't push event to partial node");
+            return;
+        }
+
+        if (!(node in this.webhookEventQueue))
+            this.webhookEventQueue[node] = [];
+
+        this.webhookEventQueue[node].push(event);
+
+        if (flush) {
+            await this.flushWebhookQueue(node);
+        }     
+    }
+
+    async flushWebhookQueue(node: string) {
+        const nodeProfile = await this.graph.getNodeProfile(node);
+
+        if (!nodeProfile) {
+            console.log("Node unknown to me");
+            return;
+        }
+        if (nodeProfile.node_type != NodeType.enum.FULL) {
+            console.log("Can't push event to partial node");
+            return;
+        }
+
+        const queue = this.webhookEventQueue[node];
+        
+        if (!(node in queue))
+            return;
+        
+        const events = queue.splice(0, queue.length);
+        
+        this.requestHandler.broadcastEvents({
+            nodeRid: node,
+            req: { events }
+        })
     }
 }

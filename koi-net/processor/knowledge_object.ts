@@ -1,6 +1,6 @@
 import { Event, EventType } from "koi-net/protocol/event";
 import { Bundle } from "rid-lib/ext/bundle";
-import { Manifest, ManifestSchema } from "rid-lib/ext/manifest";
+import { Manifest } from "rid-lib/ext/manifest";
 import { z } from "zod";
 
 export type KnowledgeEventType = EventType | null;

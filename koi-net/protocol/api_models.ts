@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { BundleSchema } from "rid-lib/ext/bundle";
-import { ManifestSchema } from "rid-lib/ext/manifest";
-import { EventSchema } from "./event";
+import { Bundle } from "rid-lib/ext/bundle";
+import { Manifest } from "rid-lib/ext/manifest";
+import { Event } from "./event";
 
 
 export const PollEventsReq = z.object({
@@ -27,18 +27,18 @@ export const RidsPayload = z.object({
 });
 
 export const ManifestsPayload = z.object({
-    manifests: z.array(ManifestSchema),
+    manifests: z.array(Manifest.schema),
     not_found: z.array(z.string()).default([])
 });
 
 export const BundlesPayload = z.object({
-    bundles: z.array(BundleSchema),
+    bundles: z.array(Bundle.schema),
     not_found: z.array(z.string()).default([]),
     deferred: z.array(z.string()).default([])
 });
 
 export const EventsPayload = z.object({
-    events: z.array(EventSchema)
+    events: z.array(Event.schema)
 });
 
 export type PollEventsReq = z.infer<typeof PollEventsReq>;

@@ -1,23 +1,25 @@
-import { Manifest, ManifestSchema } from "./manifest";
+import { Manifest } from "./manifest";
 import { sha256HashJson } from "./utils";
 import { z } from "zod";
 
 
-export const BundleSchema = z.object({
-    manifest: ManifestSchema,
-    contents: z.record(z.unknown())
-}).transform(obj => new Bundle(obj));
-
 export class Bundle {
-    manifest: Manifest;
-    contents: Record<string, unknown>;
+    constructor(
+        public manifest: Manifest,
+        public contents: Record<string, unknown>
+    ) {}
 
-    constructor({manifest, contents}: {
-        manifest: Manifest,
-        contents: Record<string, unknown>
-    }) {
-        this.manifest = manifest;
-        this.contents = contents;
+    static schema = z.object({
+        manifest: Manifest.schema,
+        contents: z.record(z.unknown())
+    });
+
+    static validate(obj: unknown): Bundle {
+        const bundleObj = this.schema.parse(obj);
+        return new Bundle(
+            bundleObj.manifest,
+            bundleObj.contents
+        )
     }
 
     get rid(): string {
@@ -28,17 +30,13 @@ export class Bundle {
         rid: string, 
         contents: Record<string, unknown>
     }): Bundle {
-        return new Bundle({
-            manifest: new Manifest({
-                rid: rid,
-                timestamp: new Date(),
-                sha256_hash: sha256HashJson(contents)
-            }), 
-            contents: contents
-        });
-    }
-
-    static validate(obj: Record<string, unknown>): Bundle {
-        return BundleSchema.parse(obj);
+        return new Bundle(
+            new Manifest(
+                rid,
+                new Date(),
+                sha256HashJson(contents)
+            ), 
+            contents
+        );
     }
 }

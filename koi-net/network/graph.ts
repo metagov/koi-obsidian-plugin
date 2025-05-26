@@ -51,11 +51,11 @@ export class NetworkGraph {
         return nodeProfile.data;
     }
 
-    async getEdgeProfile(
+    async getEdgeProfile({ rid, source, target }: {
         rid?: string,
         source?: string,
         target?: string
-    ): Promise<EdgeProfileSchema | null> {
+    }): Promise<EdgeProfileSchema | null> {
         if (source && target) {
             if (!this.dg.hasEdge(source, target)) return null;
             const edgeRid = this.dg.getEdgeAttribute(source, target, "rid");
@@ -91,15 +91,15 @@ export class NetworkGraph {
         return edgeRids;
     }
 
-    async getNeighbors(
+    async getNeighbors({ direction, status, allowedType }: {
         direction?: 'in' | 'out',
         status?: EdgeStatus,
         allowedType?: string
-    ): Promise<Array<string>> {
+    }): Promise<Array<string>> {
         const neighbors: Array<string> = [];
 
         for (const edgeRid of this.getEdges(direction)) {
-            const edgeProfile = await this.getEdgeProfile(edgeRid);
+            const edgeProfile = await this.getEdgeProfile({rid: edgeRid});
             if (!edgeProfile) {
                 console.warn(`Failed to find edge ${edgeRid} in cache`);
                 continue;

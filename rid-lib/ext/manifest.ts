@@ -1,27 +1,24 @@
 import { z } from "zod";
 
-export const ManifestSchema = z.object({
-    rid: z.string(),
-    timestamp: z.coerce.date(),
-    sha256_hash: z.string()  
-}).transform(obj => new Manifest(obj));
-
 export class Manifest {
-    rid: string;
-    timestamp: Date;
-    sha256_hash: string;
+    constructor(
+        public rid: string,
+        public timestamp: Date,
+        public sha256_hash: string
+    ) {}
 
-    constructor({rid, timestamp, sha256_hash}: {
-        rid: string,
-        timestamp: Date,
-        sha256_hash: string
-    }) {
-        this.rid = rid;
-        this.timestamp = timestamp;
-        this.sha256_hash = sha256_hash;
-    }
+    static schema = z.object({
+        rid: z.string(),
+        timestamp: z.coerce.date(),
+        sha256_hash: z.string()  
+    });
 
-    static validate(obj: Record<string, unknown>): Manifest {
-        return ManifestSchema.parse(obj);
+    static validate(obj: unknown): Manifest {
+        const manifestObj = this.schema.parse(obj);
+        return new Manifest(
+            manifestObj.rid,
+            manifestObj.timestamp,
+            manifestObj.sha256_hash
+        );
     }
 }
