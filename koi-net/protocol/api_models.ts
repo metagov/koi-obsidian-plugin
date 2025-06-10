@@ -27,18 +27,18 @@ export const RidsPayload = z.object({
 });
 
 export const ManifestsPayload = z.object({
-    manifests: z.array(Manifest.schema),
+    manifests: z.array(Manifest.schema).transform(m => m.map(Manifest.validate)),
     not_found: z.array(z.string()).default([])
 });
 
 export const BundlesPayload = z.object({
-    bundles: z.array(Bundle.schema),
+    bundles: z.array(Bundle.schema).transform(b => b.map(Bundle.validate)),
     not_found: z.array(z.string()).default([]),
     deferred: z.array(z.string()).default([])
 });
 
 export const EventsPayload = z.object({
-    events: z.array(Event.schema)
+    events: z.array(Event.schema).transform(e => e.map(Event.validate))
 });
 
 export type PollEventsReq = z.infer<typeof PollEventsReq>;

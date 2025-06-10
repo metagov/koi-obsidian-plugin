@@ -4,6 +4,8 @@ import { NodeIdentity } from "./identity";
 import { NetworkInterface } from "./network/interface";
 import { Bundle } from "rid-lib/ext/bundle";
 import { Event, EventType } from "./protocol/event";
+import { ProcessorInterface } from "./processor/interface";
+import { basicRidHandler } from "./processor/default_handlers";
 
 
 export class NodeInterface {
@@ -11,6 +13,7 @@ export class NodeInterface {
     plugin: KoiPlugin;
     identity: NodeIdentity;
     network: NetworkInterface;
+    processor: ProcessorInterface;
     
     constructor({plugin}: {
         plugin: KoiPlugin
@@ -41,13 +44,35 @@ export class NodeInterface {
             identity: this.identity,
             settings: this.plugin.settings
         });
+
+        this.processor = new ProcessorInterface({
+            cache: this.cache,
+            network: this.network,
+            identity: this.identity
+        })
+
+        this.processor.addHandler(basicRidHandler);
     }
 
     async start() {
+        this.network.graph.generate();
+
+        this.processor.handle({
+            bundle: Bundle.generate({
+                rid: this.plugin.settings.nodeRid,
+                contents: this.identity.profile
+            })
+        });
+
+        await this.processor.flushKobjQueue();
+
+        return;
+
+
         const ridsPayload = await this.network.requestHandler.fetchRids({
             url: this.plugin.settings.firstContact,
             req: {
-                rid_types: []
+                rid_types: ["orn:koi-net.node"]
             }
         });
 
@@ -59,17 +84,8 @@ export class NodeInterface {
         });
 
         for (const bundle of bundlesPayload.bundles) {
-            this.cache.write(bundle);
+            await this.processor.handle({bundle});
         }
-
-        this.cache.write(
-            Bundle.generate({
-                rid: this.plugin.settings.nodeRid,
-                contents: this.identity.profile
-            })
-        );
-
-        this.network.graph.generate();
     }
 
     async handshake() {

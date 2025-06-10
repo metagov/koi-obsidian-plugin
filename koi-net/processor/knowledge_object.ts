@@ -1,7 +1,7 @@
 import { Event, EventType } from "koi-net/protocol/event";
 import { Bundle } from "rid-lib/ext/bundle";
 import { Manifest } from "rid-lib/ext/manifest";
-import { z } from "zod";
+
 
 export type KnowledgeEventType = EventType | null;
 
@@ -10,49 +10,27 @@ export enum KnowledgeSource {
     External = "EXTERNAL"
 }
 
-// export const KnowledgeObjectSchema = z.object({
-//     rid: z.string(),
-//     manifest: ManifestSchema.optional(),
-//     contents: z.record(z.any()).optional(),
-//     event_type: EventType.optional(),
-//     normalized_event_type: EventType.optional(),
-//     source: KnowledgeSource,
-//     network_targets: z.array(z.string())
-// });
+export const STOP_CHAIN = Symbol("STOP_CHAIN");
+export type StopChain = typeof STOP_CHAIN;
+
 
 export class KnowledgeObject {
-    rid?: string;
-    manifest?: Manifest;
-    contents?: Record<string, unknown>;
-    eventType?: KnowledgeEventType = null;
-    normalizedEventType?: KnowledgeEventType = null;
-    source: KnowledgeSource = KnowledgeSource.External;
-    networkTargets: Array<string> = [];
-
     constructor(
-        {rid, manifest, contents, eventType, normalizedEventType, source}: {
-            rid?: string;
-            manifest?: Manifest;
-            contents?: Record<string, unknown>;
-            eventType?: KnowledgeEventType;
-            normalizedEventType?: KnowledgeEventType;
-            source: KnowledgeSource;
-        }
-    ) {
-        this.rid = rid;
-        this.manifest = manifest;
-        this.contents = contents;
-        this.eventType = eventType;
-        this.normalizedEventType = normalizedEventType;
-        this.source = source;
-    }
+        public rid: string,
+        public manifest?: Manifest,
+        public contents?: Record<string, unknown>,
+        public eventType: KnowledgeEventType = null,
+        public source: KnowledgeSource = KnowledgeSource.External,
+        public normalizedEventType: KnowledgeEventType = null,
+        public networkTargets: Array<string> = []
+    ) {}
 
     static fromRid(
         rid: string,
         eventType: KnowledgeEventType = null,
         source: KnowledgeSource = KnowledgeSource.Internal
     ): KnowledgeObject {
-        return new KnowledgeObject({ rid, eventType, source });
+        return new KnowledgeObject(rid, undefined, undefined, eventType, source);
     }
 
     static fromManifest(
@@ -60,7 +38,9 @@ export class KnowledgeObject {
         eventType: KnowledgeEventType = null,
         source: KnowledgeSource = KnowledgeSource.Internal
     ): KnowledgeObject {
-        return new KnowledgeObject({ rid: manifest.rid, manifest, event_type: eventType, source });
+        return new KnowledgeObject(
+            manifest.rid, manifest, undefined, eventType, source
+        );
     }
 
     static fromBundle(
@@ -68,47 +48,38 @@ export class KnowledgeObject {
         eventType: KnowledgeEventType = null,
         source: KnowledgeSource = KnowledgeSource.Internal
     ): KnowledgeObject {
-        return new KnowledgeObject({
-            rid: bundle.rid,
-            manifest: bundle.manifest,
-            contents: bundle.contents,
-            eventType,
-            source,
-        });
+        return new KnowledgeObject(
+            bundle.rid, bundle.manifest, bundle.contents, eventType, source
+        );
     }
 
     static fromEvent(
         event: Event,
         source: KnowledgeSource = KnowledgeSource.Internal
     ): KnowledgeObject {
-        return new KnowledgeObject({
-            rid: event.rid,
-            manifest: event.manifest,
-            contents: event.contents,
-            eventType: event.event_type,
-            source,
-        });
+        return new KnowledgeObject(
+            event.rid, event.manifest, event.contents, event.event_type, source
+        );
     }
 
     get bundle(): Bundle | undefined {
         if (!this.manifest || !this.contents) return undefined;
-        return new Bundle({ manifest: this.manifest, contents: this.contents });
+        return new Bundle(this.manifest, this.contents);
     }
 
-    get normalized_event(): Event {
-        if (this.normalizedEventType == null) {
-            throw new Error("Internal event's normalized event type is null, cannot convert to Event");
-        }
+    get normalizedEvent(): Event | undefined {
+        if (this.normalizedEventType == null)
+            return undefined;
 
-        if (this.normalizedEventType === EventType.FORGET) {
-            return new Event({ rid: this.rid, event_type: EventType.FORGET });
-        }
+        if (this.normalizedEventType === EventType.enum.FORGET)
+            return new Event(this.rid, EventType.enum.FORGET);
 
-        return new Event({
-            rid: this.rid,
-            event_type: this.normalizedEventType,
-            manifest: this.manifest,
-            contents: this.contents,
-        });
+        return new Event(
+            this.rid, this.normalizedEventType, this.manifest, this.contents
+        );
+    }
+
+    stringify() {
+        return `<KObj '${this.rid}' event type: '${this.eventType}' -> '${this.normalizedEventType}', source: '${this.source}'>`;
     }
 }

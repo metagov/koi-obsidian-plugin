@@ -27,7 +27,7 @@ export class NetworkGraph {
         }
 
         for (const rid of this.cache.listRids(["orn:koi-net.edge"])) {
-            const edgeProfile = await this.getEdgeProfile(rid);
+            const edgeProfile = await this.getEdgeProfile({rid});
 
             if (!edgeProfile) {
                 console.warn(`Failed to load ${rid}`);

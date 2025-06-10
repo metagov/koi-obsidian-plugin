@@ -8,6 +8,7 @@ import { RequestHandler } from 'koi-net/network/request_handlers';
 import { createNodeRid } from 'koi-net/protocol/node';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
+import { Event } from 'koi-net/protocol/event';
 
 
 export default class KoiPlugin extends Plugin {
@@ -46,8 +47,8 @@ export default class KoiPlugin extends Plugin {
 		this.statusBarIcon.addClass("koi-status-icon");
 		this.statusBarIcon.setAttribute("data-tooltip-position", "top");
 		
-		window.plugin = this;
-		window.node = this.node;
+		// window.plugin = this;
+		// window.node = this.node;
 
 		// this.addCommand({
 		// 	id: 'refresh-with-koi',
@@ -144,10 +145,12 @@ export default class KoiPlugin extends Plugin {
 
 		this.registerInterval(
 			window.setInterval(async () => {
+				console.log("polling neighbor");
 				const events = await this.node.network.pollNeighbors();
 
 				for (const event of events) {
 					console.log(`Event: [${event.event_type}] ${event.rid}`);
+					await this.node.processor.handle({event});
 				}
 
 			}, 5 * 1000)

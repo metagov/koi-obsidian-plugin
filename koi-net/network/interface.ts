@@ -37,7 +37,7 @@ export class NetworkInterface {
     }
 
     async pollNeighbors(): Promise<Array<Event>> {
-        const neighbors = await this.graph.getNeighbors();
+        const neighbors = await this.graph.getNeighbors({});
         const req = PollEventsReq.parse({ rid: this.identity.rid });
 
         if (!neighbors && this.settings.firstContact) {
