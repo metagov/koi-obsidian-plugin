@@ -10,12 +10,12 @@ export class Bundle {
     ) {}
 
     static schema = z.object({
-        manifest: Manifest.schema,
+        manifest: Manifest.schema.transform(m => Manifest.validate(m)),
         contents: z.record(z.unknown())
     });
 
     static validate(obj: unknown): Bundle {
-        const bundleObj = this.schema.parse(obj);
+        const bundleObj = Bundle.schema.parse(obj);
         return new Bundle(
             bundleObj.manifest,
             bundleObj.contents

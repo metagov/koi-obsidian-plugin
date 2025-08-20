@@ -9,15 +9,15 @@ export class Manifest {
 
     static schema = z.object({
         rid: z.string(),
-        timestamp: z.coerce.date(),
+        timestamp: z.string().datetime(),
         sha256_hash: z.string()  
     });
 
     static validate(obj: unknown): Manifest {
-        const manifestObj = this.schema.parse(obj);
+        const manifestObj = Manifest.schema.parse(obj);
         return new Manifest(
             manifestObj.rid,
-            manifestObj.timestamp,
+            new Date(manifestObj.timestamp),
             manifestObj.sha256_hash
         );
     }

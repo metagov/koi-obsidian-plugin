@@ -30,6 +30,8 @@ export default class KoiPlugin extends Plugin {
 
 		await this.loadSettings();
 		this.addSettingTab(new KoiSettingTab(this.app, this));
+
+		console.log(this.app.appId);
 		
 		console.log(this.settings);
 
