@@ -39,4 +39,8 @@ export class Bundle {
             contents
         );
     }
+    
+    validateContents<T>(schema: z.ZodType<T>): T {
+        return schema.parse(this.contents);
+    }
 }

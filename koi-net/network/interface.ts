@@ -53,7 +53,7 @@ export class NetworkInterface {
             if (!nodeProfile || nodeProfile.node_type != NodeType.enum.FULL)
                 continue;
 
-            const payload = await this.requestHandler.pollEvents({ nodeRid, req });
+            const payload = await this.requestHandler.pollEvents({ node: nodeRid, req });
             events.push(...payload.events);
         }
         return events;
@@ -104,7 +104,7 @@ export class NetworkInterface {
         const events = queue.splice(0, queue.length);
         
         this.requestHandler.broadcastEvents({
-            nodeRid: node,
+            node: node,
             req: { events }
         })
     }

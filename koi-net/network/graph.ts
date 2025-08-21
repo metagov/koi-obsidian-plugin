@@ -27,12 +27,12 @@ export class NetworkGraph {
         }
 
         for (const rid of this.cache.listRids(["orn:koi-net.edge"])) {
-            const edgeProfile = await this.getEdgeProfile({rid});
-
-            if (!edgeProfile) {
-                console.warn(`Failed to load ${rid}`);
+            const bundle = await this.cache.read(rid);
+            if (!bundle) {
+                console.error(`Failed to load ${rid}`)
                 continue;
             }
+            const edgeProfile = EdgeProfileSchema.parse(bundle.contents);
             
             this.dg.addEdge(edgeProfile.source, edgeProfile.target, { rid });
             console.log(`Added edge ${rid} (${edgeProfile.source} -> ${edgeProfile.target})`);
@@ -41,33 +41,41 @@ export class NetworkGraph {
         console.log('Done');
     }
 
-    async getNodeProfile(rid: string): Promise<NodeProfileSchema | null> {
-        const bundle = await this.cache.read(rid);
-        if (!bundle) return null;
+    // async getNodeProfile(rid: string): Promise<NodeProfileSchema | null> {
+    //     const bundle = await this.cache.read(rid);
+    //     if (!bundle) return null;
 
-        const nodeProfile = NodeProfileSchema.safeParse(bundle.contents);
-        if (!nodeProfile.success) return null;
+    //     const nodeProfile = NodeProfileSchema.safeParse(bundle.contents);
+    //     if (!nodeProfile.success) return null;
         
-        return nodeProfile.data;
-    }
+    //     return nodeProfile.data;
+    // }
 
-    async getEdgeProfile({ rid, source, target }: {
-        rid?: string,
-        source?: string,
-        target?: string
-    }): Promise<EdgeProfileSchema | null> {
-        if (source && target) {
-            if (!this.dg.hasEdge(source, target)) return null;
+    // async getEdgeProfile({ rid, source, target }: {
+    //     rid?: string,
+    //     source?: string,
+    //     target?: string
+    // }): Promise<EdgeProfileSchema | null> {
+    //     if (source && target) {
+    //         if (!this.dg.hasEdge(source, target)) return null;
+    //         const edgeRid = this.dg.getEdgeAttribute(source, target, "rid");
+    //         return edgeRid || null;
+    //     }
+
+    //     if (!rid) {
+    //         throw new Error("Either 'rid' or 'source' and 'target' must be provided");
+    //     }
+
+    //     const bundle = await this.cache.read(rid);
+    //     return bundle ? EdgeProfileSchema.parse(bundle.contents) : null;
+    // }
+
+    getEdge(source: string, target: string): string | undefined {
+        if (this.dg.hasEdge(source, target)) {
             const edgeRid = this.dg.getEdgeAttribute(source, target, "rid");
-            return edgeRid || null;
+            return edgeRid || undefined;
         }
-
-        if (!rid) {
-            throw new Error("Either 'rid' or 'source' and 'target' must be provided");
-        }
-
-        const bundle = await this.cache.read(rid);
-        return bundle ? EdgeProfileSchema.parse(bundle.contents) : null;
+        return;
     }
 
     getEdges(
@@ -99,7 +107,13 @@ export class NetworkGraph {
         const neighbors: Array<string> = [];
 
         for (const edgeRid of this.getEdges(direction)) {
-            const edgeProfile = await this.getEdgeProfile({rid: edgeRid});
+            const bundle = await this.cache.read(edgeRid);
+            if (!bundle) {
+                console.error(`Failed to find ${edgeRid} in cache`);
+                continue;
+            }
+            const edgeProfile = EdgeProfileSchema.parse(bundle.contents);
+            
             if (!edgeProfile) {
                 console.warn(`Failed to find edge ${edgeRid} in cache`);
                 continue;

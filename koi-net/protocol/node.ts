@@ -10,7 +10,8 @@ export const NodeProfileSchema = z.object({
     provides: z.object({
         event: z.array(z.string()).default([]),
         state: z.array(z.string()).default([])
-    })
+    }),
+    public_key: z.string()
 })
 
 export type NodeProfileSchema = z.infer<typeof NodeProfileSchema>;

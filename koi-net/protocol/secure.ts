@@ -1,104 +1,148 @@
 import * as crypto from 'crypto';
 
+// Cross-platform subtle helper
+const getSubtle = () => {
+    if (typeof window !== 'undefined' && window.crypto?.subtle) return window.crypto.subtle;
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require('crypto').webcrypto.subtle;
+    } catch { }
+    throw new Error('Web Crypto API not available');
+};
+// const subtle = getSubtle();
+
+import { webcrypto } from 'crypto';
+const subtle = webcrypto.subtle;
+
+function base64Encode(input: Uint8Array): string {
+    return Buffer.from(input).toString('base64');
+}
+
+function base64Decode(input: string): Uint8Array {
+    return Buffer.from(input, 'base64');
+}
+
 
 export class PrivateKey {
-    privKey: crypto.KeyObject
-    
-    constructor(privKey: crypto.KeyObject) {
+    private privKey: CryptoKey;
+
+    private constructor(privKey: CryptoKey) {
         this.privKey = privKey;
     }
 
-    static generate(): PrivateKey {
-        const { privateKey: privKey } = crypto.generateKeyPairSync(
-            'ec', {namedCurve: 'prime192v1'}
+    static async generate(): Promise<PrivateKey> {
+        const keyPair = await subtle.generateKey({
+            name: "ECDSA",
+            namedCurve: "P-256",
+        }, true, ["sign"]);
+        return new PrivateKey(keyPair.privateKey);
+    }
+
+    async publicKey(): Promise<PublicKey> {
+        const pubKeyJwk = await this.toJwk();
+        // Remove private key parameters before creating a public key
+        delete pubKeyJwk.d;
+        pubKeyJwk.key_ops = ["verify"];
+        const pubKey = await subtle.importKey(
+            "jwk",
+            pubKeyJwk, {
+            name: "ECDSA",
+            namedCurve: "P-256"
+        },
+            true, ["verify"]
+        );
+        return new PublicKey(pubKey);
+    }
+
+    static async fromJwk(jwk: JsonWebKey): Promise<PrivateKey> {
+        const privKey = await subtle.importKey(
+            "jwk",
+            jwk, {
+            name: "ECDSA",
+            namedCurve: "P-256"
+        },
+            true, ["sign"]
         );
         return new PrivateKey(privKey);
     }
 
-    publicKey(): PublicKey {
-        const pubKey = crypto.createPublicKey(this.privKey);
-        return new PublicKey(pubKey);
+    async toJwk(): Promise<JsonWebKey> {
+        return await subtle.exportKey("jwk", this.privKey);
     }
 
-    static fromPem(priv_key_pem: string, password: string): PrivateKey {
-        const privKey = crypto.createPrivateKey({
-            key: priv_key_pem,
-            type: 'pkcs8',
-            format: 'pem',
-            passphrase: password,
-        });
-        return new PrivateKey(privKey);
-    }
+    async sign(message: string): Promise<string> {
+        const encoder = new TextEncoder();
+        const encodedMessage = encoder.encode(message);
 
-    toPem(password: string): string {
-        return this.privKey.export({
-            type: 'pkcs8',
-            format: 'pem',
-            cipher: 'aes-256-cbc',
-            passphrase: password,
-        }).toString();
-    }
+        console.log(`message: ${message}, encoded: ${encodedMessage}`);
 
-    sign(message: Buffer): string {
-        return crypto.sign(
-            'sha256',
-            message,
-            this.privKey
-        ).toString('base64url')
+        const signature = await subtle.sign({
+            name: "ECDSA",
+            hash: {
+                name: "SHA-256"
+            },
+        }, this.privKey, encodedMessage);
+
+        return base64Encode(new Uint8Array(signature));
     }
 }
 
 export class PublicKey {
-    pub_key: crypto.KeyObject
-    
-    constructor(pub_key: crypto.KeyObject) {
-        this.pub_key = pub_key;
+    private pubKey: CryptoKey;
+
+    constructor(pubKey: CryptoKey) {
+        this.pubKey = pubKey;
     }
 
-    static fromPem(pub_key_pem: string): PublicKey {
-        const pub_key = crypto.createPublicKey({
-            key: pub_key_pem,
-            format: 'pem',
-        });
-        return new PublicKey(pub_key);
+    static async fromJwk(jwk: JsonWebKey): Promise<PublicKey> {
+        const pubKey = await subtle.importKey(
+            "jwk",
+            jwk, {
+            name: "ECDSA",
+            namedCurve: "P-256"
+        },
+            true, ["verify"]
+        );
+        return new PublicKey(pubKey);
     }
 
-    toPem(): string {
-        return this.pub_key.export({
-            type: 'spki',
-            format: 'pem',
-        }).toString();
+    static async fromDer(der: string): Promise<PublicKey> {
+        const spki = base64Decode(der);
+        const pubKey = await subtle.importKey(
+            "spki",
+            spki,
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["verify"]
+        );
+        return new PublicKey(pubKey);
     }
 
-    static fromDer(pub_key_der: string): PublicKey {
-        const derBuffer = Buffer.from(pub_key_der, 'base64url');
-        const pub_key = crypto.createPublicKey({
-            key: derBuffer,
-            format: 'der',
-            type: 'spki',
-        });
-        return new PublicKey(pub_key);
+    async toJwk(): Promise<JsonWebKey> {
+        return await subtle.exportKey("jwk", this.pubKey);
     }
 
-    toDer(): string {
-        return this.pub_key.export({
-            type: 'spki',
-            format: 'der',
-        }).toString('base64url');
+    async toDer(): Promise<string> {
+        const spki = await subtle.exportKey("spki", this.pubKey);
+        return base64Encode(new Uint8Array(spki));
     }
 
-    verify(signature: string, message: Buffer): boolean {
-        try {
-            return crypto.verify(
-                'sha256',
-                message,
-                this.pub_key,
-                Buffer.from(signature, 'base64url')
-            );
-        } catch(err) {
-            console.error(err);
-            return false;
-        }
+    async verify(signature: string, message: string): Promise<boolean> {
+        const encoder = new TextEncoder();
+        const encodedMessage = encoder.encode(message);
+        console.log(`message: ${message}, encoded: ${encodedMessage}`);
+        const signatureBytes = base64Decode(signature);
+
+        // signature (b64 string) -> decode
+
+        console.log(signatureBytes);
+
+        return await subtle.verify({
+            name: "ECDSA",
+            hash: {
+                name: "SHA-256"
+            },
+        }, this.pubKey, signatureBytes, encodedMessage);
     }
 }
 

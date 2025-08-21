@@ -1,147 +1,159 @@
 import { KoiCache } from "rid-lib/ext/cache";
-import { 
-    PollEventsReq, 
-    FetchBundlesReq, 
-    FetchManifestsReq, 
-    FetchRidsReq, 
-    EventsPayload, 
-    RidsPayload, 
-    ManifestsPayload, 
-    BundlesPayload 
+import {
+    PollEventsReq,
+    FetchBundlesReq,
+    FetchManifestsReq,
+    FetchRidsReq,
+    EventsPayload,
+    RidsPayload,
+    ManifestsPayload,
+    BundlesPayload,
+    ErrorResponse,
+    PayloadUnion
 } from "koi-net/protocol/api_models";
-import { 
-    BROADCAST_EVENTS_PATH, 
-    POLL_EVENTS_PATH, 
-    FETCH_BUNDLES_PATH, 
-    FETCH_MANIFESTS_PATH, 
-    FETCH_RIDS_PATH 
+import {
+    BROADCAST_EVENTS_PATH,
+    POLL_EVENTS_PATH,
+    FETCH_BUNDLES_PATH,
+    FETCH_MANIFESTS_PATH,
+    FETCH_RIDS_PATH
 } from "koi-net/protocol/consts";
 import { requestUrl } from "obsidian";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { z } from "zod";
 import { KoiPluginSettings } from "settings";
 import { NetworkGraph } from "./graph";
+import { NodeIdentity } from "koi-net/identity";
+import { Effector } from "koi-net/effector";
+import { Secure } from "koi-net/secure";
+import { SignedEnvelope } from "koi-net/protocol/envelope";
 
 export class RequestHandler {
+    secure: Secure;
+    identity: NodeIdentity;
+    effector: Effector;
     cache: KoiCache;
     graph: NetworkGraph;
-    settings: KoiPluginSettings;
 
-    constructor({cache, graph, settings}: {
+    constructor({ cache, graph, identity, effector, secure }: {
+        identity: NodeIdentity;
+        secure: Secure;
+        effector: Effector;
         cache: KoiCache,
         graph: NetworkGraph,
-        settings: KoiPluginSettings
     }) {
+        this.secure = secure;
+        this.identity = identity;
+        this.effector = effector;
         this.cache = cache;
         this.graph = graph;
-        this.settings = settings;
     }
 
-    async makeRequest<T>({url, req, respModel}: {
-        url: string,
-        req?: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq,
-        respModel?: z.ZodType<T>
-   }) {
-        let headers: Record<string, string>;
+    async getUrl(node: string): Promise<string> {
+        if (node === this.identity.rid)
+            throw "don't talk to yourself";
 
-        if (this.settings.koiApiKey) {
-            headers = {"X-API-Key": this.settings.koiApiKey};
-        } else {
-            headers = {};
+        const nodeBundle = await this.effector.deref({ rid: node });
+
+        let nodeUrl;
+        if (nodeBundle) {
+            const nodeProfile = nodeBundle.validateContents(NodeProfileSchema);
+            if (nodeProfile.node_type !== NodeType.enum.FULL)
+                throw "can't query partial node"
+            nodeUrl = nodeProfile.base_url;
+        } else if (node === "TODO: first contact") {
+
         }
+
+        if (!nodeUrl)
+            throw "node not found";
+
+        return nodeUrl;
+    }
+
+    async makeRequest({ node, req, path }: {
+        node: string,
+        path: string,
+        req: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq
+    }): Promise<PayloadUnion> {
+        const url = (await this.getUrl(node)) + path;
+        
+        const signedEnvelope = this.secure.createEnvelope({ 
+            payload: req, 
+            target: node 
+        })
 
         console.log(url, req);
 
-        const resp = await requestUrl({
-            url: url,
-            headers: headers,
-            method: "POST",
-            body: req && JSON.stringify(req)
+        const result = await requestUrl({
+            url, method: "POST",
+            body: signedEnvelope && JSON.stringify(signedEnvelope)
         });
 
-        return respModel ? respModel.parse(resp.json) : resp.json;
-    }
-
-    async getUrl({nodeRid, url}: {
-        nodeRid?: string,
-        url?: string
-    }): Promise<string> {
-        if (nodeRid) {
-            const nodeProfile = await this.graph.getNodeProfile(nodeRid);
-            if (!nodeProfile)
-                throw "Node not found";
-
-            if (nodeProfile.node_type !== NodeType.enum.FULL)
-                throw "Can't query partial node";
-
-            if (!nodeProfile.base_url)
-                throw "Missing base url in node profile";
-
-            return nodeProfile.base_url
-
-        } else if (url) {
-            return url;
-        } else {
-            throw "One of 'node_rid' and 'url' must be provided";
+        if (result.status !== 200) {
+            console.error(result.text);
+            return ErrorResponse.parse(result.json);
         }
+
+        const respEnvelope = SignedEnvelope.validate(result.json);
+
+        this.secure.validateEnvelope(respEnvelope);
+
+        return respEnvelope.payload;
     }
 
-    async broadcastEvents({nodeRid, url, req}: {
-        nodeRid?: string,
-        url?: string
-        req: EventsPayload
+    async broadcastEvents({ node, req }: {
+        node: string,
+        req: Omit<EventsPayload, "type">
     }): Promise<void> {
-            await this.makeRequest({
-                url: (await this.getUrl({nodeRid, url})) + BROADCAST_EVENTS_PATH, 
-                req: EventsPayload.parse(req)
-            });
-        }
+        await this.makeRequest({
+            node,
+            path: BROADCAST_EVENTS_PATH,
+            req: EventsPayload.parse(req)
+        });
+    }
 
-    async pollEvents({nodeRid, url, req}: {
-        nodeRid?: string,
-        url?: string
-        req: PollEventsReq
+    async pollEvents({ node, req }: {
+        node: string,
+        req: Omit<PollEventsReq, "type">
     }): Promise<EventsPayload> {
         return await this.makeRequest({
-            url: (await this.getUrl({nodeRid, url})) + POLL_EVENTS_PATH, 
-            req: PollEventsReq.parse(req),
-            respModel: EventsPayload
-        });
+            node,
+            path: POLL_EVENTS_PATH,
+            req: PollEventsReq.parse(req)
+        }) as EventsPayload;
     }
 
-    async fetchRids({nodeRid, url, req}: {
-        nodeRid?: string,
-        url?: string
-        req: FetchRidsReq
+    async fetchRids({ node, req }: {
+        node: string,
+        req: Omit<FetchRidsReq, "type">
     }): Promise<RidsPayload> {
         return await this.makeRequest({
-            url: (await this.getUrl({nodeRid, url})) + FETCH_RIDS_PATH, 
-            req: FetchRidsReq.parse(req),
-            respModel: RidsPayload
-        });
+            node,
+            path: FETCH_RIDS_PATH,
+            req: FetchRidsReq.parse(req)
+        }) as RidsPayload;
     }
 
-    async fetchManifests({nodeRid, url, req}: {
-        nodeRid?: string,
-        url?: string
-        req: FetchManifestsReq
+    async fetchManifests({ node, req }: {
+        node: string,
+        req: Omit<FetchManifestsReq, "type">
     }): Promise<ManifestsPayload> {
         return await this.makeRequest({
-            url: (await this.getUrl({nodeRid, url})) + FETCH_MANIFESTS_PATH, 
-            req: FetchManifestsReq.parse(req),
-            respModel: ManifestsPayload
-        });
+            node,
+            path: FETCH_MANIFESTS_PATH,
+            req: FetchManifestsReq.parse(req)
+        }) as ManifestsPayload;
     }
 
-    async fetchBundles({nodeRid, url, req}: {
-        nodeRid?: string,
-        url?: string
-        req: FetchBundlesReq
+    async fetchBundles({ node, req }: {
+        node: string,
+        req: Omit<FetchBundlesReq, "type">
     }): Promise<BundlesPayload> {
         return await this.makeRequest({
-            url: (await this.getUrl({nodeRid, url})) + FETCH_BUNDLES_PATH, 
-            req: FetchBundlesReq.parse(req),
-            respModel: BundlesPayload
-        });
+            node,
+            path: FETCH_BUNDLES_PATH,
+            req: FetchBundlesReq.parse(req)
+        }) as BundlesPayload;
     }
 }

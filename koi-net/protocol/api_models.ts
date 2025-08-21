@@ -5,47 +5,47 @@ import { Event } from "./event";
 
 
 export const PollEventsReq = z.object({
-    type: z.literal("poll_events"),
+    type: z.literal("poll_events").default("poll_events"),
     rid: z.string(),
     limit: z.number().default(0).nullable()
 });
 
 export const FetchRidsReq = z.object({
-    type: z.literal("fetch_rids"),
+    type: z.literal("fetch_rids").default("fetch_rids"),
     rid_types: z.array(z.string()).default([])
 });
 
 export const FetchManifestsReq = z.object({
-    type: z.literal("fetch_manifests"),
+    type: z.literal("fetch_manifests").default("fetch_manifests"),
     rid_types: z.array(z.string()).default([]),
     rids: z.array(z.string()).default([])
 });
 
 export const FetchBundlesReq = z.object({
-    type: z.literal("fetch_bundles"),
+    type: z.literal("fetch_bundles").default("fetch_bundles"),
     rids: z.array(z.string()).default([])
 });
 
 export const RidsPayload = z.object({
-    type: z.literal("rids_payload"),
+    type: z.literal("rids_payload").default("rids_payload"),
     rids: z.array(z.string())
 });
 
 export const ManifestsPayload = z.object({
-    type: z.literal("manifests_payload"),
+    type: z.literal("manifests_payload").default("manifests_payload"),
     manifests: z.array(Manifest.schema).transform(m => m.map(Manifest.validate)),
     not_found: z.array(z.string()).default([])
 });
 
 export const BundlesPayload = z.object({
-    type: z.literal("bundles_payload"),
+    type: z.literal("bundles_payload").default("bundles_payload"),
     bundles: z.array(Bundle.schema).transform(b => b.map(Bundle.validate)),
     not_found: z.array(z.string()).default([]),
     deferred: z.array(z.string()).default([])
 });
 
 export const EventsPayload = z.object({
-    type: z.literal("events_payload"),
+    type: z.literal("events_payload").default("events_payload"),
     events: z.array(Event.schema).transform(e => e.map(Event.validate))
 });
 
@@ -57,7 +57,7 @@ export const ErrorType = z.enum([
 ])
 
 export const ErrorResponse = z.object({
-    type: z.literal("error_response"),
+    type: z.literal("error_response").default("error_response"),
     error: ErrorType
 })
 
@@ -72,6 +72,7 @@ export const PayloadUnion = z.discriminatedUnion("type", [
     EventsPayload,
     ErrorResponse
 ])
+
 
 export type PollEventsReq = z.infer<typeof PollEventsReq>;
 export type FetchRidsReq = z.infer<typeof FetchRidsReq>;

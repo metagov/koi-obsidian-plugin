@@ -1,5 +1,4 @@
-import KoiPlugin from "main";
-import { App, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import { Bundle } from "./bundle";
 
 export class KoiCache {
@@ -52,18 +51,18 @@ export class KoiCache {
         return this.getFileObject(rid) !== null;
     }
 
-    async read(rid: string): Promise<Bundle | null> {
+    async read(rid: string): Promise<Bundle | undefined> {
         try {
             const file = this.getFileObject(rid);
-            if (!file) return null;
+            if (!file) return undefined;
             const jsonString = await this.vault.read(file);
             return JSON.parse(jsonString);
         } catch (err) {
-            return null;
+            return undefined;
         } 
     }
 
-    listRids(ridTypes: Array<string> | null = null): Array<string> {
+    listRids(ridTypes?: Array<string>): Array<string> {
         const folder = this.getFolderObject();
         if (!folder) return [];
 

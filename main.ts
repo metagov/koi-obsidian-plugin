@@ -32,7 +32,7 @@ export default class KoiPlugin extends Plugin {
 		this.addSettingTab(new KoiSettingTab(this.app, this));
 
 		console.log(this.app.appId);
-		
+
 		console.log(this.settings);
 
 		this.node = new NodeInterface({
@@ -128,6 +128,7 @@ export default class KoiPlugin extends Plugin {
 	}
 
 	async setup() {
+		return;
 		const templateFile = this.app.vault.getFileByPath(
 			this.settings.templatePath);
 		if (!templateFile) {
@@ -142,7 +143,7 @@ export default class KoiPlugin extends Plugin {
 		this.node.cache.listRids();
 		await this.fileFormatter.compileTemplate();
 
-		await this.node.start();
+		await this.node.setup();
 
 
 		this.registerInterval(

@@ -1,18 +1,17 @@
 import { EventType } from "koi-net/protocol/event";
 import { HandlerType, KnowledgeHandler } from "./handler";
-import { ProcessorInterface } from "./interface";
-import { KnowledgeObject, KnowledgeSource, STOP_CHAIN } from "./knowledge_object";
+import { KnowledgeObject, STOP_CHAIN } from "./knowledge_object";
+import { HandlerContext } from "koi-net/context";
 
 
 export const basicRidHandler = new KnowledgeHandler({
     handlerType: HandlerType.RID,
-    func: (processor: ProcessorInterface, kobj: KnowledgeObject) => {
+    func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
 
         console.log(kobj.rid);
 
-        if (kobj.rid === processor.identity.rid &&
-            kobj.source === KnowledgeSource.External
-        ) return STOP_CHAIN;
+        if (kobj.rid === ctx.identity.rid && kobj.source) 
+            return STOP_CHAIN;
 
         kobj.normalizedEventType = kobj.eventType;
         return kobj;
@@ -26,8 +25,8 @@ export const basicRidHandler = new KnowledgeHandler({
 
 export const basicManifestHandler = new KnowledgeHandler({
     handlerType: HandlerType.Manifest,
-    func: async (processor: ProcessorInterface, kobj: KnowledgeObject) => {
-        const prevBundle = await processor.cache.read(kobj.rid);
+    func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
+        const prevBundle = await ctx.cache.read(kobj.rid);
 
         if (prevBundle) {
             if (kobj.manifest!.sha256_hash === prevBundle.manifest.sha256_hash) {

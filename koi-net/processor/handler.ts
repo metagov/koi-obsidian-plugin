@@ -1,5 +1,6 @@
-import { KnowledgeEventType, KnowledgeObject, KnowledgeSource, StopChain } from "./knowledge_object";
-import { ProcessorInterface } from "./interface";
+import { KnowledgeObject, StopChain } from "./knowledge_object";
+import { EventType } from "koi-net/protocol/event";
+import { HandlerContext } from "koi-net/context";
 
 export enum HandlerType {
     RID = "rid",
@@ -12,24 +13,24 @@ export enum HandlerType {
 type OptionalPromise<T> = T | Promise<T>;
 
 export class KnowledgeHandler {
-    public func: (p: ProcessorInterface, k: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | void>;
+    public func: (ctx: HandlerContext, kobj: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | undefined>;
     public handlerType: HandlerType;
-    public ridTypes: Array<string> | null;
-    public source: KnowledgeSource | null;
-    public eventTypes: Array<KnowledgeEventType> | null;
+    public ridTypes?: Array<string>;
+    public source?: string;
+    public eventTypes?: Array<EventType | undefined>;
 
     constructor({
         func,
         handlerType,
-        ridTypes = null,
-        source = null,
-        eventTypes = null,
+        ridTypes,
+        source,
+        eventTypes,
     }: {
-        func: (p: ProcessorInterface, k: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | void>;
+        func: (ctx: HandlerContext, kobj: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | undefined>;
         handlerType: HandlerType;
-        ridTypes?: Array<string> | null;
-        source?: KnowledgeSource | null;
-        eventTypes?: Array<KnowledgeEventType> | null;
+        ridTypes?: Array<string>;
+        source?: string;
+        eventTypes?: Array<EventType | undefined>;
     }) {
         this.func = func;
         this.handlerType = handlerType;
