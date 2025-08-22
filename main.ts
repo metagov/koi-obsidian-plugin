@@ -3,7 +3,6 @@ import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
 import { defaultTelescopeTemplate } from 'default-template';
-import { Effector } from 'effector';
 import { RequestHandler } from 'koi-net/network/request_handlers';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
@@ -38,10 +37,6 @@ export default class KoiPlugin extends Plugin {
 
         console.log(this.app.appId);
         window.plugin = this;
-
-        if (this.settings.config.priv_key)
-            window.privKey = await PrivateKey.fromJwk(this.settings.config.priv_key);
-
 
         this.config = this.settings.config;
 
@@ -154,7 +149,7 @@ export default class KoiPlugin extends Plugin {
     }
 
     async setup() {
-        return;
+
         const templateFile = this.app.vault.getFileByPath(
             this.settings.templatePath);
         if (!templateFile) {
@@ -169,20 +164,18 @@ export default class KoiPlugin extends Plugin {
         this.node.cache.listRids();
         await this.fileFormatter.compileTemplate();
 
-        await this.node.setup();
-
 
         this.registerInterval(
             window.setInterval(async () => {
                 console.log("polling neighbor");
-                const events = await this.node.network.pollNeighbors();
+                const events = await this.node.resolver.pollNeighbors();
 
-                for (const event of events) {
-                    console.log(`Event: [${event.event_type}] ${event.rid}`);
-                    await this.node.processor.handle({event});
-                }
+                // for (const event of events) {
+                //     console.log(`Event: [${event.event_type}] ${event.rid}`);
+                //     await this.node.processor.handle({event});
+                // }
 
-            }, 5 * 1000)
+            }, this.config.polling_interval * 1000)
         );
     }
 

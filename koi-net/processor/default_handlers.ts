@@ -4,7 +4,7 @@ import { KnowledgeObject, STOP_CHAIN } from "./knowledge_object";
 import { HandlerContext } from "koi-net/context";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { sha256Hash } from "rid-lib/ext/utils";
-import { EdgeProfileSchema, EdgeStatus, EdgeType } from "koi-net/protocol/edge";
+import { EdgeProfileSchema, EdgeStatus, EdgeType, generateEdgeBundle } from "koi-net/protocol/edge";
 import { Bundle } from "rid-lib/ext/bundle";
 
 
@@ -124,6 +124,104 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
                 });
                 ctx.handle({bundle: updatedBundle, eventType: "UPDATE"});
                 return;
+            }
+        } else if (edgeProfile.target === ctx.identity.rid) {
+            if (edgeProfile.status === EdgeStatus.enum.APPROVED) {
+                console.log("edge approved by other node")
+            }
+        }
+    }
+})
+
+export const coordinatorContact = new KnowledgeHandler({
+    handlerType: HandlerType.Network,
+    ridTypes: ["orn:koi-net.node"],
+    func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
+        const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
+
+        if (!nodeProfile.provides.event?.contains("orn:koi-net.node"))
+            return;
+
+        if (kobj.rid === ctx.identity.rid)
+            return;
+
+        if (ctx.graph.getEdge({
+            source: kobj.rid,
+            target: ctx.identity.rid
+        }))
+            return;
+
+        console.log("identified new coordinator, proposing edge");
+
+        ctx.handle({
+            bundle: generateEdgeBundle({
+                source: kobj.rid,
+                target: ctx.identity.rid,
+                edgeType: "POLL",
+                ridTypes: ["orn:koi-net.node"]
+            })
+        })
+
+        const payload = await ctx.requestHandler.fetchRids({
+            node: kobj.rid,
+            req: {rid_types: ["orn:koi-net.node"]}
+        });
+        for (const rid of payload.rids) {
+            if (rid === ctx.identity.rid) continue;
+            if (ctx.cache.exists(rid)) continue;
+            ctx.handle({rid, source: kobj.rid});
+        }
+    }
+});
+
+export const basicNetworkOutputFilter = new KnowledgeHandler({
+    handlerType: HandlerType.Network,
+    func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
+        let involvesMe: boolean = false;
+        if (!kobj.source) {
+            if (kobj.rid.startsWith("orn:koi-net.node")) {
+                if (kobj.rid === ctx.identity.rid) {
+                    involvesMe = true;
+                }
+            } else if (kobj.rid.startsWith("orn:koi-net.edge")) {
+                const edgeProfile = kobj.bundle!.validateContents(EdgeProfileSchema);
+                if (edgeProfile.source === ctx.identity.rid) {
+                    kobj.networkTargets.push(edgeProfile.target);
+                    involvesMe = true;
+                } else if (edgeProfile.target === ctx.identity.rid) {
+                    kobj.networkTargets.push(edgeProfile.source);
+                    involvesMe = true;
+                }
+            }
+        }
+
+
+        const ridType = kobj.rid.split(":", 1)[0];
+        if (ctx.identity.profile.provides.event.contains(ridType) || involvesMe) {
+            const subscribers = await ctx.graph.getNeighbors({
+                direction: "out",
+                allowedType: ridType
+            });
+            kobj.networkTargets.push(...subscribers);
+        }
+
+        return kobj;
+    }
+})
+
+export const forgetEdgeOnNodeDeletion = new KnowledgeHandler({
+    handlerType: HandlerType.Final,
+    ridTypes: ["orn:koi-net.node"],
+    func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
+        if (kobj.normalizedEventType !== EventType.enum.FORGET) return;
+
+        for (const edgeRid of ctx.graph.getEdges()) {
+            const edgeBundle = await ctx.cache.read(edgeRid);
+            const edgeProfile = edgeBundle?.validateContents(EdgeProfileSchema);
+            if (!edgeProfile) continue;
+
+            if (edgeProfile.source === kobj.rid || edgeProfile.target === kobj.rid) {
+                ctx.handle({rid: edgeRid, eventType: EventType.enum.FORGET});
             }
         }
     }

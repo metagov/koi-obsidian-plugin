@@ -42,7 +42,10 @@ export class NetworkGraph {
         console.log('Done');
     }
 
-    getEdge(source: string, target: string): string | undefined {
+    getEdge({source, target}: {
+        source: string, 
+        target: string
+    }): string | undefined {
         if (this.dg.hasEdge(source, target)) {
             const edgeRid = this.dg.getEdgeAttribute(source, target, "rid");
             return edgeRid || undefined;
@@ -75,7 +78,7 @@ export class NetworkGraph {
         direction?: 'in' | 'out',
         status?: EdgeStatus,
         allowedType?: string
-    }): Promise<Array<string>> {
+    } = {}): Promise<Array<string>> {
         const neighbors: Array<string> = [];
 
         for (const edgeRid of this.getEdges(direction)) {

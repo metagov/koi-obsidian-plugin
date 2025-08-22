@@ -5,6 +5,7 @@ import { NetworkGraph } from "./network/graph";
 import { NetworkEventQueue } from "./network/event_queue";
 import { RequestHandler } from "./network/request_handlers";
 import { ProcessorInterface } from "./processor/interface";
+import { KoiNetConfigSchema } from "./config";
 // NodeConfig is not found in your TypeScript codebase, so you may need to define or import it if it exists elsewhere.
 
 export class ActionContext {
@@ -19,7 +20,7 @@ export class ActionContext {
 
 export class HandlerContext {
     identity: NodeIdentity;
-    // config: NodeConfig; // Uncomment and import if NodeConfig exists in TS
+    config: KoiNetConfigSchema;
     cache: KoiCache;
     eventQueue: NetworkEventQueue;
     graph: NetworkGraph;
@@ -27,17 +28,17 @@ export class HandlerContext {
     effector: Effector;
     private _processor?: ProcessorInterface;
 
-    constructor(
+    constructor({ identity, config, cache, eventQueue, graph, requestHandler, effector }: {
         identity: NodeIdentity,
-        // config: NodeConfig, // Uncomment and import if NodeConfig exists in TS
+        config: KoiNetConfigSchema,
         cache: KoiCache,
         eventQueue: NetworkEventQueue,
         graph: NetworkGraph,
         requestHandler: RequestHandler,
         effector: Effector
-    ) {
+    }) {
         this.identity = identity;
-        // this.config = config; // Uncomment if NodeConfig exists
+        this.config = config;
         this.cache = cache;
         this.eventQueue = eventQueue;
         this.graph = graph;
