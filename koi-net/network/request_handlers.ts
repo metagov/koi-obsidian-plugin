@@ -20,28 +20,30 @@ import {
 } from "koi-net/protocol/consts";
 import { requestUrl } from "obsidian";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
-import { z } from "zod";
-import { KoiPluginSettings } from "settings";
 import { NetworkGraph } from "./graph";
 import { NodeIdentity } from "koi-net/identity";
 import { Effector } from "koi-net/effector";
 import { Secure } from "koi-net/secure";
 import { SignedEnvelope } from "koi-net/protocol/envelope";
+import { KoiNetConfigSchema } from "koi-net/config";
 
 export class RequestHandler {
+    config: KoiNetConfigSchema;
     secure: Secure;
     identity: NodeIdentity;
     effector: Effector;
     cache: KoiCache;
     graph: NetworkGraph;
 
-    constructor({ cache, graph, identity, effector, secure }: {
+    constructor({ cache, graph, identity, effector, secure, config }: {
         identity: NodeIdentity;
         secure: Secure;
         effector: Effector;
         cache: KoiCache,
         graph: NetworkGraph,
+        config: KoiNetConfigSchema
     }) {
+        this.config = config;
         this.secure = secure;
         this.identity = identity;
         this.effector = effector;
@@ -61,8 +63,8 @@ export class RequestHandler {
             if (nodeProfile.node_type !== NodeType.enum.FULL)
                 throw "can't query partial node"
             nodeUrl = nodeProfile.base_url;
-        } else if (node === "TODO: first contact") {
-
+        } else if (node === this.config.first_contact.rid) {
+            nodeUrl = this.config.first_contact.url;
         }
 
         if (!nodeUrl)
@@ -96,9 +98,7 @@ export class RequestHandler {
         }
 
         const respEnvelope = SignedEnvelope.validate(result.json);
-
         this.secure.validateEnvelope(respEnvelope);
-
         return respEnvelope.payload;
     }
 

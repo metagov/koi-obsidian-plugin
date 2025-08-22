@@ -51,6 +51,6 @@ export class HandlerContext {
     }
 
     get handle() {
-        return this._processor?.handle;
+        return this._processor!.handle;
     }
 }

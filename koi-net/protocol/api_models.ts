@@ -6,7 +6,6 @@ import { Event } from "./event";
 
 export const PollEventsReq = z.object({
     type: z.literal("poll_events").default("poll_events"),
-    rid: z.string(),
     limit: z.number().default(0).nullable()
 });
 
@@ -17,8 +16,8 @@ export const FetchRidsReq = z.object({
 
 export const FetchManifestsReq = z.object({
     type: z.literal("fetch_manifests").default("fetch_manifests"),
-    rid_types: z.array(z.string()).default([]),
-    rids: z.array(z.string()).default([])
+    rid_types: z.array(z.string()).optional(),
+    rids: z.array(z.string()).optional()
 });
 
 export const FetchBundlesReq = z.object({

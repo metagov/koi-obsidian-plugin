@@ -1,17 +1,18 @@
 import { DirectedGraph } from "graphology";
 import { NodeIdentity } from "koi-net/identity";
-import { NodeProfileSchema } from "koi-net/protocol/node";
 import { EdgeProfileSchema, EdgeStatus } from "koi-net/protocol/edge";
 import { KoiCache } from "rid-lib/ext/cache";
-
 
 
 export class NetworkGraph {
     cache: KoiCache;
     identity: NodeIdentity;
     dg: DirectedGraph;
-
-    constructor(cache: KoiCache, identity: NodeIdentity) {
+    
+    constructor({ cache, identity }: { 
+        cache: KoiCache; 
+        identity: NodeIdentity 
+    }) {
         this.cache = cache;
         this.identity = identity;
         this.dg = new DirectedGraph();
@@ -40,35 +41,6 @@ export class NetworkGraph {
 
         console.log('Done');
     }
-
-    // async getNodeProfile(rid: string): Promise<NodeProfileSchema | null> {
-    //     const bundle = await this.cache.read(rid);
-    //     if (!bundle) return null;
-
-    //     const nodeProfile = NodeProfileSchema.safeParse(bundle.contents);
-    //     if (!nodeProfile.success) return null;
-        
-    //     return nodeProfile.data;
-    // }
-
-    // async getEdgeProfile({ rid, source, target }: {
-    //     rid?: string,
-    //     source?: string,
-    //     target?: string
-    // }): Promise<EdgeProfileSchema | null> {
-    //     if (source && target) {
-    //         if (!this.dg.hasEdge(source, target)) return null;
-    //         const edgeRid = this.dg.getEdgeAttribute(source, target, "rid");
-    //         return edgeRid || null;
-    //     }
-
-    //     if (!rid) {
-    //         throw new Error("Either 'rid' or 'source' and 'target' must be provided");
-    //     }
-
-    //     const bundle = await this.cache.read(rid);
-    //     return bundle ? EdgeProfileSchema.parse(bundle.contents) : null;
-    // }
 
     getEdge(source: string, target: string): string | undefined {
         if (this.dg.hasEdge(source, target)) {

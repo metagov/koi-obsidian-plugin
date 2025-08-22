@@ -41,19 +41,15 @@ export class SignedEnvelope {
         });
     }
 
-    verifyWith(pubKey: PublicKey): boolean {
-        const unsigned = new UnsignedEnvelope({
+    async verifyWith(pubKey: PublicKey): Promise<boolean> {
+        const unsignedEnvelope = new UnsignedEnvelope({
             payload: this.payload,
             source_node: this.source_node,
             target_node: this.target_node
         });
-        const data = unsigned.toJsonBuffer();
+        const data = new Uint8Array(unsignedEnvelope.toJsonBuffer());
 
-        // const hash = createHash('sha256')
-        // hash.update(data);
-        // console.log(hash.digest('hex'));
-
-        return pubKey.verify(this.signature, data);
+        return await pubKey.verify(this.signature, data);
     }
 }
 
@@ -87,9 +83,9 @@ export class UnsignedEnvelope {
         });
     }
 
-    signWith(privKey: PrivateKey): SignedEnvelope {
-        const data = this.toJsonBuffer();
-        const signature = privKey.sign(data);
+    async signWith(privKey: PrivateKey): Promise<SignedEnvelope> {
+        const data = new Uint8Array(this.toJsonBuffer());
+        const signature = await privKey.sign(data);
         return new SignedEnvelope({
             payload: this.payload,
             source_node: this.source_node,

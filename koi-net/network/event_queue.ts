@@ -3,15 +3,13 @@ import { KoiCache } from "rid-lib/ext/cache";
 import { NetworkGraph } from "./graph";
 import { RequestHandler } from "./request_handlers";
 import { Event } from "koi-net/protocol/event";
-import { KoiPluginSettings } from "settings";
-import { PollEventsReq } from "koi-net/protocol/api_models";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
-import { EdgeType } from "koi-net/protocol/edge";
 import { Effector } from "koi-net/effector";
+import { KoiNetConfigSchema } from "koi-net/config";
 
 
 export class NetworkEventQueue {
-    settings: KoiPluginSettings;
+    config: KoiNetConfigSchema;
     identity: NodeIdentity;
     effector: Effector;
     cache: KoiCache;
@@ -19,25 +17,22 @@ export class NetworkEventQueue {
     requestHandler: RequestHandler;
     webhookEventQueue: Record<string, Array<Event>>;
 
-    constructor({cache, identity, settings, graph, effector}: {
+    constructor({cache, identity, config, graph, effector, requestHandler}: {
         cache: KoiCache,
         identity: NodeIdentity,
         effector: Effector,
         graph: NetworkGraph,
-        settings: KoiPluginSettings
+        config: KoiNetConfigSchema,
+        requestHandler: RequestHandler
     }) {
         this.identity = identity;
         this.cache = cache;
         this.graph = graph;
         this.effector = effector;
-        this.settings = settings;
+        this.config = config;
+        this.requestHandler = requestHandler;
 
-        this.graph = new NetworkGraph(cache, identity);
-        this.requestHandler = new RequestHandler({
-            identity, effector, cache, graph, settings
-        })
-
-        this.webhookEventQueue = {}
+        this.webhookEventQueue = {};
     }
 
     async pushEventTo({ event, node, flush = false }: {
@@ -54,8 +49,11 @@ export class NetworkEventQueue {
                 console.log("Can't push event to partial node");
                 return;
             }
-        } else if (node === "TODO: first_contact") {
-
+        } else if (node === this.config.first_contact.rid) {
+            // allow
+        } else {
+            console.log("unknown node", node);
+            return;
         }
 
         if (!(node in this.webhookEventQueue))
@@ -68,18 +66,7 @@ export class NetworkEventQueue {
         }     
     }
 
-    async flushWebhookQueue(node: string) {
-        // const nodeProfile = await this.graph.getNodeProfile(node);
-
-        // if (!nodeProfile) {
-        //     console.log("Node unknown to me");
-        //     return;
-        // }
-        // if (nodeProfile.node_type != NodeType.enum.FULL) {
-        //     console.log("Can't push event to partial node");
-        //     return;
-        // }
-
+    async flushWebhookQueue(node: string, requeueOnFail: boolean = true) {
         const queue = this.webhookEventQueue[node];
         
         if (!(node in queue))
@@ -94,6 +81,10 @@ export class NetworkEventQueue {
             })
         } catch (err) {
             console.error(err);
+
+            if (requeueOnFail) {
+                queue.push(...events);
+            }
         }
     }
 }

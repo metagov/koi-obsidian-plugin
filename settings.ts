@@ -1,24 +1,38 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type KoiPlugin from "main";
+import { KoiNetConfigSchema } from 'koi-net/config';
 
 export interface KoiPluginSettings {
-    nodeRid: string;
-    firstContact: string;
-    koiApiKey: string | null;
+    config: KoiNetConfigSchema;
 	koiSyncFolderPath: string;
 	templatePath: string;
-    nodeName: string;
     initialized: boolean;
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
-	nodeRid: "",
-    firstContact: "",
-	koiApiKey: "",
+    config: {
+        node_name: "",
+        node_rid: "",
+        node_profile: {
+            node_type: "PARTIAL",
+            provides: {
+                event: ["orn:obsidian.note"],
+                state: []
+            },
+            public_key: ""
+        },
+        cache_directory_path: "rid_cache",
+        polling_interval: 5,
+        first_contact: {
+            rid: null,
+            url: null
+        },
+        priv_key: null
+    },
 	koiSyncFolderPath: "telescope",
 	templatePath: "telescope-template.md",
-    nodeName: "",
-    initialized: false
+    initialized: false,
+    
 }
 
 export class KoiSettingTab extends PluginSettingTab {
@@ -38,29 +52,29 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('KOI-net node RID')
             .setDesc('The RID of this plugin\'s KOI-net node')
             .addText(text => text
-                .setPlaceholder('')
-                .setValue(this.plugin.settings.nodeRid))
+                .setPlaceholder('orn:koi-net.node:...')
+                .setValue(this.plugin.settings.config.node_rid || ''))
             .setDisabled(true);
 
         new Setting(containerEl)
-            .setName('KOI-net first contact')
-            .setDesc('URL of the KOI-net node this plugin will establish initial communication with')
+            .setName('KOI-net first contact RID')
+            .setDesc('RID of the KOI-net node this plugin will establish first contact with')
             .addText(text => text
-                .setPlaceholder('https://...')
-                .setValue(this.plugin.settings.firstContact)
+                .setPlaceholder('orn:koi-net.node:...')
+                .setValue(this.plugin.settings.config.first_contact.rid || '')
                 .onChange(async (value) => {
-                    this.plugin.settings.firstContact = value;
+                    this.plugin.settings.config.first_contact.rid = value;
                     await this.plugin.saveSettings();
                 }));
-        
+
         new Setting(containerEl)
-            .setName('KOI-net API key')
-            .setDesc('Optional API key for accessing protected KOI-net nodes')
+            .setName('KOI-net first contact URL')
+            .setDesc('URL of the KOI-net node this plugin will establish first contact with')
             .addText(text => text
-                .setValue(this.plugin.settings.koiApiKey || "")
+                .setPlaceholder('https://')
+                .setValue(this.plugin.settings.config.first_contact.url || '')
                 .onChange(async (value) => {
-                    this.plugin.settings.koiApiKey = (value === "") ? null : value;
-                    console.log(this.plugin.settings.koiApiKey);
+                    this.plugin.settings.config.first_contact.url = value;
                     await this.plugin.saveSettings();
                 }));
 

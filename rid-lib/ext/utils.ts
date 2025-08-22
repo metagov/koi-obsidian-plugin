@@ -15,12 +15,16 @@ function sortJson(obj: any): any {
     return sortedObj;
 }
 
+export function sha256Hash(input: string) {
+    const hash = createHash('sha256');
+    hash.update(input)
+    return hash.digest('hex');
+}
+
 
 export function sha256HashJson(contents: Record<string, unknown>): string {
     const contents_string = serialize(contents);
     if (!contents_string)
         throw "failed to serialize JSON";
-    const hash = createHash("sha256");
-    hash.update(contents_string);
-    return hash.digest("hex");
+    return sha256Hash(contents_string);
 }

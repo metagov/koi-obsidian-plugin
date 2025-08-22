@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 
 
 export const NodeType = z.enum(["FULL", "PARTIAL"]);
+export type NodeType = z.infer<typeof NodeType>;
 
 export const NodeProfileSchema = z.object({
     base_url: z.string().nullable().optional(),
@@ -15,7 +15,3 @@ export const NodeProfileSchema = z.object({
 })
 
 export type NodeProfileSchema = z.infer<typeof NodeProfileSchema>;
-
-export function createNodeRid(name: string) {
-    return `orn:koi-net.node:${name}+${uuidv4()}`;
-}
