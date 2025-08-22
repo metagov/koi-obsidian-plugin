@@ -6,10 +6,7 @@ import { defaultTelescopeTemplate } from 'default-template';
 import { RequestHandler } from 'koi-net/network/request_handlers';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
-import { Event } from 'koi-net/protocol/event';
-import { SignedEnvelope, UnsignedEnvelope } from 'koi-net/protocol/envelope';
-import { PrivateKey, PublicKey } from 'koi-net/protocol/secure';
-import { RidsPayload } from 'koi-net/protocol/api_models';
+import { PrivateKey } from 'koi-net/protocol/secure';
 import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
 
@@ -26,7 +23,6 @@ export default class KoiPlugin extends Plugin {
     connected: boolean;
     syncMutex: Mutex;
     fileFormatter: TelescopeFormatter;
-    effector: Effector;
     reqHandler: RequestHandler;
 
     async onload() {
@@ -50,7 +46,7 @@ export default class KoiPlugin extends Plugin {
             config: this.config
         });
 
-        this.fileFormatter = new TelescopeFormatter(this, this.cache, this.effector);
+        this.fileFormatter = new TelescopeFormatter(this, this.cache, this.node.effector);
         
         this.syncMutex = new Mutex();
         this.connected = true;
@@ -71,13 +67,13 @@ export default class KoiPlugin extends Plugin {
         // 	}
         // });
 
-        // this.addCommand({
-        // 	id: 'drop-rid-cache',
-        // 	name: 'Drop RID cache',
-        // 	callback: async () => {
-        // 		await this.ridCache.drop();
-        // 	}
-        // });
+        this.addCommand({
+        	id: 'drop-rid-cache',
+        	name: 'Drop RID cache',
+        	callback: async () => {
+        		await this.cache.drop();
+        	}
+        });
 
         class ExampleModal extends Modal {
             constructor(app: App, onSubmit: (result: string) => void) {
@@ -119,9 +115,12 @@ export default class KoiPlugin extends Plugin {
                     this.settings.config.node_rid = nodeRid;
                     this.settings.config.priv_key = await privKey.toJwk();
                     this.settings.config.node_profile.public_key = pubKeyDer;
+                    this.settings.initialized = true;
                     await this.saveSettings();
 
                     new Notice(`Node RID set to \`${nodeRid}\``);
+
+                    await this.setup();
                 }).open();
             }
         })
@@ -164,18 +163,14 @@ export default class KoiPlugin extends Plugin {
         this.node.cache.listRids();
         await this.fileFormatter.compileTemplate();
 
+        if (!this.settings.initialized) return;
+        await this.node.lifecycle.start();
 
         this.registerInterval(
-            window.setInterval(async () => {
-                console.log("polling neighbor");
-                const events = await this.node.resolver.pollNeighbors();
-
-                // for (const event of events) {
-                //     console.log(`Event: [${event.event_type}] ${event.rid}`);
-                //     await this.node.processor.handle({event});
-                // }
-
-            }, this.config.polling_interval * 1000)
+            window.setInterval(
+                async () => {await this.node.poller.poll()}, 
+                this.config.polling_interval * 1000
+            )
         );
     }
 

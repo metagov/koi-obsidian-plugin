@@ -35,10 +35,10 @@ export class NetworkResolver {
     }
 
     async pollNeighbors(): Promise<Record<string, Array<Event>>> {
-        const graphNeighbors = await this.graph.getNeighbors({});
-        
+        const graphNeighbors = await this.graph.getNeighbors();
         const neighbors: Array<string> = [];
-        if (graphNeighbors) {
+
+        if (graphNeighbors.length) {
             for (const nodeRid of graphNeighbors) {
                 const nodeBundle = await this.cache.read(nodeRid);
                 if (!nodeBundle) continue;

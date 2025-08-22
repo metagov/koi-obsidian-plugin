@@ -6,13 +6,16 @@ import { NetworkEventQueue } from "./network/event_queue";
 import { RequestHandler } from "./network/request_handlers";
 import { ProcessorInterface } from "./processor/interface";
 import { KoiNetConfigSchema } from "./config";
-// NodeConfig is not found in your TypeScript codebase, so you may need to define or import it if it exists elsewhere.
+
 
 export class ActionContext {
     identity: NodeIdentity;
     effector: Effector;
 
-    constructor(identity: NodeIdentity, effector: Effector) {
+    constructor({ identity, effector }: { 
+        identity: NodeIdentity, 
+        effector: Effector 
+    }) {
         this.identity = identity;
         this.effector = effector;
     }
