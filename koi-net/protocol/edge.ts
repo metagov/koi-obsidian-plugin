@@ -24,7 +24,7 @@ export function generateEdgeBundle({source, target, ridTypes, edgeType}: {
     ridTypes: Array<string>,
     edgeType: EdgeType
 }): Bundle {
-    const edgeRid = sha256Hash(source + target);
+    const edgeRid = `orn:koi-net.edge:${sha256Hash(source + target)}`;
     const edgeProfile: EdgeProfileSchema = {
         source, target, 
         rid_types: ridTypes, 

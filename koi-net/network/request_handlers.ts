@@ -86,7 +86,7 @@ export class RequestHandler {
         })
 
         console.log(url, req);
-        console.log(JSON.stringify(signedEnvelope));
+        // console.log(JSON.stringify(signedEnvelope));
 
         const result = await requestUrl({
             url, method: "POST",
@@ -101,7 +101,7 @@ export class RequestHandler {
         if (path === BROADCAST_EVENTS_PATH)
             return;
 
-        console.log(result);
+        // console.log(result);
 
         const respEnvelope = SignedEnvelope.validate(result.json);
         this.secure.validateEnvelope(respEnvelope);

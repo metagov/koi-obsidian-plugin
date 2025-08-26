@@ -10,7 +10,7 @@ function toSixDecimalISOString(date: Date): string {
     const millisecondPart = parts[1];
     const microseconds = millisecondPart.slice(0, 3) + '000';
     const newIsoString = `${timePart}.${microseconds}Z`;
-    console.log(isoString, newIsoString);
+    // console.log(isoString, newIsoString);
     return newIsoString;
 }
 
@@ -44,7 +44,7 @@ export class Bundle {
         rid: string,
         contents: Record<string, unknown>
     }): Bundle {
-        console.log("generating");
+        console.log("generating bundle...");
         return new Bundle({
             manifest: new Manifest(
                 rid,

@@ -108,12 +108,12 @@ export class PublicKey {
     }
 
     async verify(signature: string, message: Uint8Array): Promise<boolean> {
-        console.log(`message: ${message}`);
+        // console.log(`message: ${message}`);
         const signatureBytes = base64Decode(signature);
 
         // signature (b64 string) -> decode
 
-        console.log(signatureBytes);
+        // console.log(signatureBytes);
 
         return await webcrypto.subtle.verify({
             name: "ECDSA",

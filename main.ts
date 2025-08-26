@@ -11,6 +11,7 @@ import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
 import { EventsPayload } from 'koi-net/protocol/api_models';
 import { KoiEvent } from 'koi-net/protocol/event';
+import { randomUUID, UUID } from 'crypto';
 
 
 export default class KoiPlugin extends Plugin {
@@ -26,6 +27,8 @@ export default class KoiPlugin extends Plugin {
     syncMutex: Mutex;
     fileFormatter: TelescopeFormatter;
     reqHandler: RequestHandler;
+
+    poller: number;
 
     async onload() {
         console.log("hello world!");
@@ -161,7 +164,7 @@ export default class KoiPlugin extends Plugin {
 
                     new Notice(`Node RID set to \`${nodeRid}\``);
 
-                    await this.setup();
+                    // await this.setup();
                 }).open();
             }
         })
@@ -189,7 +192,6 @@ export default class KoiPlugin extends Plugin {
     }
 
     async setup() {
-
         const templateFile = this.app.vault.getFileByPath(
             this.settings.templatePath);
         if (!templateFile) {
@@ -209,14 +211,16 @@ export default class KoiPlugin extends Plugin {
         console.log((await this.node.secure.privKey.publicKey()).toDer());
         await this.node.lifecycle.start();
 
-        this.registerInterval(
+        this.poller = this.registerInterval(
             window.setInterval(
-                async () => {await this.node.poller.poll()}, 
+                async () => {
+                    await this.node.poller.poll();
+                }, 
                 this.config.polling_interval * 1000
             )
         );
-    }
 
+    }
     
     async loadSettings() {
         const loadedSettings = await this.loadData();

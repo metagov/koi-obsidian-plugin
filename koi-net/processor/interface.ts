@@ -49,8 +49,6 @@ export class ProcessorInterface {
         }
 
         console.log("kobj", _kobj);
-        console.log(this.kobjQueue);
-        console.log(this);
         this.kobjQueue.push(_kobj);
     }
 }

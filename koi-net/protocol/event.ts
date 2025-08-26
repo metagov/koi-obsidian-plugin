@@ -23,7 +23,7 @@ export class KoiEvent {
     });
 
     static validate(obj: Record<string, unknown>): KoiEvent {
-        console.log("VALIDATING EVENT", obj);
+        // console.log("VALIDATING EVENT", obj);
         const eventObj = KoiEvent.schema.parse(obj);
         return new KoiEvent(
             eventObj.rid,

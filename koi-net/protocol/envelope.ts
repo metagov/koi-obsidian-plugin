@@ -38,7 +38,7 @@ export class SignedEnvelope {
         // }
         // console.log(EventsPayload.parse(obj!.payload));
         const parsed = SignedEnvelope.schema.parse(obj);
-        console.log("SIGNED ENVELOPE", parsed);
+        // console.log("SIGNED ENVELOPE", parsed);
         return new SignedEnvelope({
             payload: parsed.payload,
             source_node: parsed.source_node,
@@ -90,13 +90,13 @@ export class UnsignedEnvelope {
     }
 
     async signWith(privKey: PrivateKey): Promise<SignedEnvelope> {
-        console.log("signing unsigned envelope...");
+        // console.log("signing unsigned envelope...");
         const validatedEnvelope = UnsignedEnvelope.schema.parse({...this})
-        console.log(validatedEnvelope);
+        // console.log(validatedEnvelope);
         const jsonEnvelope = JSON.stringify(validatedEnvelope);
-        console.log(jsonEnvelope);
+        // console.log(jsonEnvelope);
         const data = new Uint8Array(Buffer.from(jsonEnvelope));
-        console.log(data);
+        // console.log(data);
         const signature = await privKey.sign(data);
 
         return new SignedEnvelope({

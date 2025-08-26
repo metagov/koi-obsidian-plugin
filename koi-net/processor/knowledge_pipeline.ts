@@ -55,15 +55,19 @@ export class KnowledgePipeline {
             }
             if (handler.source && handler.source != kobj.source) continue;
             if (handler.eventTypes && !(handler.eventTypes.includes(kobj.eventType))) continue;
-
+            
+            console.log(`calling ${handler.func.name}`)
             const resp = handler.func(this.handlerContext, kobj);
             const result = (resp instanceof Promise) ? await resp : resp;
 
             if (result === STOP_CHAIN) {
+                console.log("returned STOP_CHAIN")
                 return STOP_CHAIN;
             } else if (result === undefined) {
+                console.log("kobj unchanged")
                 continue
             } else {
+                console.log("kobj modified")
                 kobj = result;
             }
         }
