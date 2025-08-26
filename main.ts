@@ -9,6 +9,8 @@ import { KoiCache } from 'rid-lib/ext/cache';
 import { PrivateKey } from 'koi-net/protocol/secure';
 import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
+import { EventsPayload } from 'koi-net/protocol/api_models';
+import { KoiEvent } from 'koi-net/protocol/event';
 
 
 export default class KoiPlugin extends Plugin {
@@ -45,6 +47,45 @@ export default class KoiPlugin extends Plugin {
             cache: this.cache,
             config: this.config
         });
+
+        // const event1 = KoiEvent.validate(
+        //     {
+        //         "rid": "orn:koi-net.node:luke+5930c20bac97e52ddd10890b5ee316ce4c82308f7e381b9ebad145cc2e0e3008",
+        //         "event_type": "FORGET"
+        //     }
+        // );
+        // console.log(event1);
+
+        // return;
+        // const event2 = KoiEvent.validate(
+        //     {
+        //         "rid": "orn:koi-net.node:luke+5930c20bac97e52ddd10890b5ee316ce4c82308f7e381b9ebad145cc2e0e3008",
+        //         "event_type": "NEW",
+        //         "manifest": {
+        //             "rid": "orn:koi-net.node:luke+5930c20bac97e52ddd10890b5ee316ce4c82308f7e381b9ebad145cc2e0e3008",
+        //             "timestamp": "2025-08-22T20:59:40.323Z",
+        //             "sha256_hash": "11e6d64cd8f2b2148a9cf0780d6a8b0354bf083bfbd23a169408c14c12568cfb"
+        //         },
+        //         "contents": {
+        //             "node_type": "PARTIAL",
+        //             "provides": {
+        //                 "event": [
+        //                     "orn:obsidian.note"
+        //                 ],
+        //                 "state": []
+        //             },
+        //             "public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsCYFdIeB0lmH5TvXPtPotwRvYVF5BzkZN5P0gx2vdL4xANey5PA7MFRgZRO0a4ZwUzoPdIbiCLhf/v/LwZRBfg=="
+        //         }
+        //     }
+        // );
+        // console.log(event2);
+
+        // EventsPayload.parse({
+        //     events: [
+        //         event1, event2
+        //     ]
+        // })
+        // return;
 
         this.fileFormatter = new TelescopeFormatter(this, this.cache, this.node.effector);
         
@@ -164,6 +205,8 @@ export default class KoiPlugin extends Plugin {
         await this.fileFormatter.compileTemplate();
 
         if (!this.settings.initialized) return;
+        await this.node.secure.loadPrivKey(this.config.priv_key!);
+        console.log((await this.node.secure.privKey.publicKey()).toDer());
         await this.node.lifecycle.start();
 
         this.registerInterval(

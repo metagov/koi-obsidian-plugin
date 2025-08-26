@@ -56,7 +56,7 @@ export class KoiCache {
             const file = this.getFileObject(rid);
             if (!file) return undefined;
             const jsonString = await this.vault.read(file);
-            return JSON.parse(jsonString);
+            return Bundle.validate(JSON.parse(jsonString));
         } catch (err) {
             return undefined;
         } 

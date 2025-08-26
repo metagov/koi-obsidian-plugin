@@ -77,25 +77,31 @@ export class RequestHandler {
         node: string,
         path: string,
         req: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq
-    }): Promise<PayloadUnion> {
+    }): Promise<PayloadUnion | undefined> {
         const url = (await this.getUrl(node)) + path;
         
-        const signedEnvelope = this.secure.createEnvelope({ 
+        const signedEnvelope = await this.secure.createEnvelope({ 
             payload: req, 
             target: node 
         })
 
         console.log(url, req);
+        console.log(JSON.stringify(signedEnvelope));
 
         const result = await requestUrl({
             url, method: "POST",
-            body: signedEnvelope && JSON.stringify(signedEnvelope)
+            body: JSON.stringify(signedEnvelope),
         });
 
         if (result.status !== 200) {
             console.error(result.text);
             return ErrorResponse.parse(result.json);
         }
+
+        if (path === BROADCAST_EVENTS_PATH)
+            return;
+
+        console.log(result);
 
         const respEnvelope = SignedEnvelope.validate(result.json);
         this.secure.validateEnvelope(respEnvelope);

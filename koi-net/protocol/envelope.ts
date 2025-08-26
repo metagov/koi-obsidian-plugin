@@ -2,8 +2,8 @@
 
 import { z } from 'zod';
 import { PrivateKey, PublicKey } from './secure';
-import { PayloadUnion } from './api_models';
-import { createHash } from 'crypto';
+import { EventsPayload, PayloadUnion } from './api_models';
+import { KoiEvent } from './event';
 
 
 export class SignedEnvelope {
@@ -31,8 +31,14 @@ export class SignedEnvelope {
         signature: z.string()
     });
 
-    static validate(obj: unknown): SignedEnvelope {
+    static validate(obj: any): SignedEnvelope {
+        // console.log("VALIDATING ENV OBJ", obj);
+        // for (const e of obj!.payload!.events) {
+        //     console.log(KoiEvent.validate(e));
+        // }
+        // console.log(EventsPayload.parse(obj!.payload));
         const parsed = SignedEnvelope.schema.parse(obj);
+        console.log("SIGNED ENVELOPE", parsed);
         return new SignedEnvelope({
             payload: parsed.payload,
             source_node: parsed.source_node,
@@ -84,8 +90,15 @@ export class UnsignedEnvelope {
     }
 
     async signWith(privKey: PrivateKey): Promise<SignedEnvelope> {
-        const data = new Uint8Array(this.toJsonBuffer());
+        console.log("signing unsigned envelope...");
+        const validatedEnvelope = UnsignedEnvelope.schema.parse({...this})
+        console.log(validatedEnvelope);
+        const jsonEnvelope = JSON.stringify(validatedEnvelope);
+        console.log(jsonEnvelope);
+        const data = new Uint8Array(Buffer.from(jsonEnvelope));
+        console.log(data);
         const signature = await privKey.sign(data);
+
         return new SignedEnvelope({
             payload: this.payload,
             source_node: this.source_node,

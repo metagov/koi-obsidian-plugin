@@ -1,4 +1,4 @@
-import { Event, EventType } from "koi-net/protocol/event";
+import { KoiEvent, EventType } from "koi-net/protocol/event";
 import { Bundle } from "rid-lib/ext/bundle";
 import { Manifest } from "rid-lib/ext/manifest";
 
@@ -47,7 +47,7 @@ export class KnowledgeObject {
     }
 
     static fromEvent(
-        event: Event,
+        event: KoiEvent,
         source?: string
     ): KnowledgeObject {
         return new KnowledgeObject(
@@ -57,17 +57,20 @@ export class KnowledgeObject {
 
     get bundle(): Bundle | undefined {
         if (!this.manifest || !this.contents) return undefined;
-        return new Bundle(this.manifest, this.contents);
+        return new Bundle({
+            manifest: this.manifest, 
+            contents: this.contents
+        });
     }
 
-    get normalizedEvent(): Event | undefined {
+    get normalizedEvent(): KoiEvent | undefined {
         if (!this.normalizedEventType)
             return;
 
         if (this.normalizedEventType === EventType.enum.FORGET)
-            return new Event(this.rid, EventType.enum.FORGET);
+            return new KoiEvent(this.rid, EventType.enum.FORGET);
 
-        return new Event(
+        return new KoiEvent(
             this.rid, this.normalizedEventType, this.manifest, this.contents
         );
     }

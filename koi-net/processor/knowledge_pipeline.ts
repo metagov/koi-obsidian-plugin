@@ -1,4 +1,4 @@
-import { Event, EventType } from "koi-net/protocol/event";
+import { KoiEvent, EventType } from "koi-net/protocol/event";
 import { HandlerType, KnowledgeHandler } from "./handler";
 import { KnowledgeObject, STOP_CHAIN, StopChain } from "./knowledge_object";
 import { KoiCache } from "rid-lib/ext/cache";
@@ -168,7 +168,7 @@ export class KnowledgePipeline {
 
         for (const node of kobj.networkTargets) {
             await this.eventQueue.pushEventTo({
-                node, event: kobj.normalizedEvent as Event
+                node, event: kobj.normalizedEvent as KoiEvent
             });
             await this.eventQueue.flushWebhookQueue(node);
         }

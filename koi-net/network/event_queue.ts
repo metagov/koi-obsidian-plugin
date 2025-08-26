@@ -2,7 +2,7 @@ import { NodeIdentity } from "koi-net/identity";
 import { KoiCache } from "rid-lib/ext/cache";
 import { NetworkGraph } from "./graph";
 import { RequestHandler } from "./request_handlers";
-import { Event } from "koi-net/protocol/event";
+import { KoiEvent } from "koi-net/protocol/event";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { Effector } from "koi-net/effector";
 import { KoiNetConfigSchema } from "koi-net/config";
@@ -15,7 +15,7 @@ export class NetworkEventQueue {
     cache: KoiCache;
     graph: NetworkGraph;
     requestHandler: RequestHandler;
-    webhookEventQueue: Record<string, Array<Event>>;
+    webhookEventQueue: Record<string, Array<KoiEvent>>;
 
     constructor({cache, identity, config, graph, effector, requestHandler}: {
         cache: KoiCache,
@@ -36,10 +36,11 @@ export class NetworkEventQueue {
     }
 
     async pushEventTo({ event, node, flush = false }: {
-        event: Event,
+        event: KoiEvent,
         node: string,
         flush?: boolean
     }) {
+        console.log(`pushing event: ${event} to ${node}`);
         const nodeBundle = await this.effector.deref({rid: node});
 
         if (nodeBundle) {
@@ -67,14 +68,16 @@ export class NetworkEventQueue {
     }
 
     async flushWebhookQueue(node: string, requeueOnFail: boolean = true) {
+        console.log("flushing queue for", node);
+        if (!(node in this.webhookEventQueue)) return;
         const queue = this.webhookEventQueue[node];
-        
-        if (!(node in queue))
-            return;
         
         const events = queue.splice(0, queue.length);
         
+        console.log(events);
+
         try {
+            console.log(`broadcasting ${events.length} events`)
             this.requestHandler.broadcastEvents({
                 node: node,
                 req: { events }

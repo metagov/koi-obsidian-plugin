@@ -3,7 +3,7 @@ import { z } from "zod";
 export class Manifest {
     constructor(
         public rid: string,
-        public timestamp: Date,
+        public timestamp: string,
         public sha256_hash: string
     ) {}
 
@@ -13,11 +13,11 @@ export class Manifest {
         sha256_hash: z.string()  
     });
 
-    static validate(obj: unknown): Manifest {
+    static validate(obj: any): Manifest {
         const manifestObj = Manifest.schema.parse(obj);
         return new Manifest(
             manifestObj.rid,
-            new Date(manifestObj.timestamp),
+            manifestObj.timestamp,
             manifestObj.sha256_hash
         );
     }

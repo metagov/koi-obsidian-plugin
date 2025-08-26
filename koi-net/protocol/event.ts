@@ -7,7 +7,7 @@ export const EventType = z.enum(["NEW", "UPDATE", "FORGET"]);
 export type EventType = z.infer<typeof EventType>;
 
 
-export class Event {
+export class KoiEvent {
     constructor(
         public rid: string,
         public event_type: EventType,
@@ -18,13 +18,14 @@ export class Event {
     static schema = z.object({
         rid: z.string(),
         event_type: EventType,
-        manifest: Manifest.schema.optional(),
+        manifest: Manifest.schema.transform(m => Manifest.validate(m)).optional(),
         contents: z.record(z.unknown()).optional()
     });
 
-    static validate(obj: Record<string, unknown>): Event {
-        const eventObj = this.schema.parse(obj);
-        return new Event(
+    static validate(obj: Record<string, unknown>): KoiEvent {
+        console.log("VALIDATING EVENT", obj);
+        const eventObj = KoiEvent.schema.parse(obj);
+        return new KoiEvent(
             eventObj.rid,
             eventObj.event_type,
             eventObj.manifest,
@@ -32,8 +33,8 @@ export class Event {
         )
     }
 
-    static fromBundle(event_type: EventType, bundle: Bundle): Event {
-        return new Event(
+    static fromBundle(event_type: EventType, bundle: Bundle): KoiEvent {
+        return new KoiEvent(
             bundle.manifest.rid,
             event_type,
             bundle.manifest,
@@ -41,16 +42,16 @@ export class Event {
         );
     }
 
-    static fromManifest(event_type: EventType, manifest: Manifest): Event {
-        return new Event(
+    static fromManifest(event_type: EventType, manifest: Manifest): KoiEvent {
+        return new KoiEvent(
             manifest.rid,
             event_type,
             manifest,
         );
     }
 
-    static fromRID(event_type: EventType, rid: string): Event {
-        return new Event(
+    static fromRID(event_type: EventType, rid: string): KoiEvent {
+        return new KoiEvent(
             rid,
             event_type,
         );
@@ -58,10 +59,10 @@ export class Event {
 
     get bundle(): Bundle | undefined {
         if (this.manifest && this.contents) {
-            return new Bundle(
-                this.manifest,
-                this.contents
-            );
+            return new Bundle({
+                manifest: this.manifest,
+                contents: this.contents
+            });
         }
         return undefined;
     }

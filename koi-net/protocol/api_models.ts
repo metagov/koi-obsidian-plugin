@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Bundle } from "rid-lib/ext/bundle";
 import { Manifest } from "rid-lib/ext/manifest";
-import { Event } from "./event";
+import { KoiEvent } from "./event";
 
 
 export const PollEventsReq = z.object({
@@ -45,7 +45,7 @@ export const BundlesPayload = z.object({
 
 export const EventsPayload = z.object({
     type: z.literal("events_payload").default("events_payload"),
-    events: z.array(Event.schema).transform(e => e.map(Event.validate))
+    events: z.array(KoiEvent.schema).transform(e => e.map(KoiEvent.validate))
 });
 
 export const ErrorType = z.enum([

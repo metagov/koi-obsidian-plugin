@@ -1,7 +1,7 @@
 import { Effector } from "./effector";
 import { NodeIdentity } from "./identity";
 import { NetworkEventQueue } from "./network/event_queue";
-import { Event, EventType } from "./protocol/event";
+import { KoiEvent, EventType } from "./protocol/event";
 
 export class Actor {
     identity: NodeIdentity;
@@ -19,15 +19,16 @@ export class Actor {
     }
 
     async handshakeWith({target}: {target: string}) {
-        this.eventQueue.pushEventTo({
-            event: Event.fromRID(
+        console.log("shaking hands with", target);
+        await this.eventQueue.pushEventTo({
+            event: KoiEvent.fromRID(
                 EventType.enum.FORGET, 
                 this.identity.rid
             ),
             node: target
         });
-        this.eventQueue.pushEventTo({
-            event: Event.fromBundle(
+        await this.eventQueue.pushEventTo({
+            event: KoiEvent.fromBundle(
                 EventType.enum.NEW,
                 (await this.effector.deref({rid: this.identity.rid}))!
             ),

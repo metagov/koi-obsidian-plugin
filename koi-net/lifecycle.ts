@@ -34,12 +34,12 @@ export class NodeLifecycle {
         await this.effector.deref({rid: this.identity.rid, refreshCache: true});
         await this.processor.flushKobjQueue();
 
-        if (
-            !(await this.graph.getNeighbors()).length && 
-            this.config.first_contact.rid
-        ) {
+
+        const neighbors = await this.graph.getNeighbors();
+        console.log("neighbors", neighbors);
+        if (!neighbors.length && this.config.first_contact.rid) {
             console.log("i dont have any neighbors, reaching out to first contact");
-            this.actor.handshakeWith({
+            await this.actor.handshakeWith({
                 target: this.config.first_contact.rid
             });
         }

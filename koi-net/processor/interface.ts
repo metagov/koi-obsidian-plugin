@@ -1,4 +1,4 @@
-import { Event, EventType } from "koi-net/protocol/event";
+import { KoiEvent, EventType } from "koi-net/protocol/event";
 import { Bundle } from "rid-lib/ext/bundle";
 import { Manifest } from "rid-lib/ext/manifest";
 import { KnowledgeObject } from "./knowledge_object";
@@ -12,6 +12,7 @@ export class ProcessorInterface {
     constructor({pipeline}: {
         pipeline: KnowledgePipeline
     }) {
+        console.log("initializing");
         this.pipeline = pipeline;
         this.kobjQueue = [];
     }
@@ -27,7 +28,7 @@ export class ProcessorInterface {
         rid?: string,
         manifest?: Manifest,
         bundle?: Bundle,
-        event?: Event,
+        event?: KoiEvent,
         kobj?: KnowledgeObject,
         eventType?: EventType,
         source?: string
@@ -47,6 +48,9 @@ export class ProcessorInterface {
             throw "One of 'rid', 'manifest', 'bundle', 'event', or 'kobj' must be provided";
         }
 
+        console.log("kobj", _kobj);
+        console.log(this.kobjQueue);
+        console.log(this);
         this.kobjQueue.push(_kobj);
     }
 }

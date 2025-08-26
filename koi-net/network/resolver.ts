@@ -2,7 +2,7 @@ import { NodeIdentity } from "koi-net/identity";
 import { KoiCache } from "rid-lib/ext/cache";
 import { NetworkGraph } from "./graph";
 import { RequestHandler } from "./request_handlers";
-import { Event } from "koi-net/protocol/event";
+import { KoiEvent } from "koi-net/protocol/event";
 import { PollEventsReq } from "koi-net/protocol/api_models";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { EdgeType } from "koi-net/protocol/edge";
@@ -34,7 +34,7 @@ export class NetworkResolver {
         this.effector = effector;
     }
 
-    async pollNeighbors(): Promise<Record<string, Array<Event>>> {
+    async pollNeighbors(): Promise<Record<string, Array<KoiEvent>>> {
         const graphNeighbors = await this.graph.getNeighbors();
         const neighbors: Array<string> = [];
 
@@ -50,7 +50,7 @@ export class NetworkResolver {
             neighbors.push(this.config.first_contact.rid);
         }
 
-        const eventsMap: Record<string, Array<Event>> = {};
+        const eventsMap: Record<string, Array<KoiEvent>> = {};
         for (const nodeRid of neighbors) {
             const payload = await this.requestHandler.pollEvents({ 
                 node: nodeRid, 

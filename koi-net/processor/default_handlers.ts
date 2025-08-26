@@ -1,4 +1,4 @@
-import { Event, EventType } from "koi-net/protocol/event";
+import { KoiEvent, EventType } from "koi-net/protocol/event";
 import { HandlerType, KnowledgeHandler } from "./handler";
 import { KnowledgeObject, STOP_CHAIN } from "./knowledge_object";
 import { HandlerContext } from "koi-net/context";
@@ -34,7 +34,11 @@ export const basicManifestHandler = new KnowledgeHandler({
                 console.log("Hash of incoming manifest is same as existing knowledge, ignoring");
                 return STOP_CHAIN;
             }
-            if (kobj.manifest!.timestamp <= prevBundle.manifest.timestamp) {
+
+            const prevTimestamp = new Date(prevBundle.manifest.timestamp);
+            const currTimestamp = new Date(kobj.manifest!.timestamp);
+
+            if (currTimestamp <= prevTimestamp) {
                 console.log("Timestamp of incoming manifest is the same or older than existing knowledge, ignoring");
                 return STOP_CHAIN;
             }
@@ -112,7 +116,7 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
             }
 
             if (abort) {
-                const event = Event.fromRID("FORGET", kobj.rid);
+                const event = KoiEvent.fromRID("FORGET", kobj.rid);
                 ctx.eventQueue.pushEventTo({event, node: kobj.rid, flush: true});
                 return STOP_CHAIN;
                 
@@ -122,7 +126,7 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
                     rid: kobj.rid,
                     contents: edgeProfile
                 });
-                ctx.handle({bundle: updatedBundle, eventType: "UPDATE"});
+                ctx.processor.handle({bundle: updatedBundle, eventType: "UPDATE"});
                 return;
             }
         } else if (edgeProfile.target === ctx.identity.rid) {
@@ -153,7 +157,7 @@ export const coordinatorContact = new KnowledgeHandler({
 
         console.log("identified new coordinator, proposing edge");
 
-        ctx.handle({
+        ctx.processor.handle({
             bundle: generateEdgeBundle({
                 source: kobj.rid,
                 target: ctx.identity.rid,
@@ -169,7 +173,7 @@ export const coordinatorContact = new KnowledgeHandler({
         for (const rid of payload.rids) {
             if (rid === ctx.identity.rid) continue;
             if (ctx.cache.exists(rid)) continue;
-            ctx.handle({rid, source: kobj.rid});
+            ctx.processor.handle({rid, source: kobj.rid});
         }
     }
 });
@@ -221,7 +225,7 @@ export const forgetEdgeOnNodeDeletion = new KnowledgeHandler({
             if (!edgeProfile) continue;
 
             if (edgeProfile.source === kobj.rid || edgeProfile.target === kobj.rid) {
-                ctx.handle({rid: edgeRid, eventType: EventType.enum.FORGET});
+                ctx.processor.handle({rid: edgeRid, eventType: EventType.enum.FORGET});
             }
         }
     }

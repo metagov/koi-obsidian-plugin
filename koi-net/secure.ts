@@ -4,10 +4,8 @@ import { Effector } from "./effector";
 import { PrivateKey, PublicKey } from "./protocol/secure";
 import { UnsignedEnvelope, SignedEnvelope } from "./protocol/envelope";
 import { EventsPayload } from "./protocol/api_models";
-import { EventType, Event } from "./protocol/event";
 import { NodeProfileSchema } from "./protocol/node";
 // import { UnknownNodeError, InvalidKeyError, InvalidSignatureError, InvalidTargetError } from "./protocol/errors"; // Uncomment if you have these
-import { z } from "zod";
 import { sha256Hash } from "rid-lib/ext/utils";
 import { PrivKeySchema } from "./config";
 
@@ -24,8 +22,8 @@ export class Secure {
         this.effector = effector;
     }
 
-    async loadPrivKey(jwk: PrivKeySchema): Promise<PrivateKey> {
-        return await PrivateKey.fromJwk(jwk);
+    async loadPrivKey(jwk: PrivKeySchema) {
+        this.privKey = await PrivateKey.fromJwk(jwk);
     }
 
     private handleUnknownNode(envelope: SignedEnvelope): Bundle | undefined {
@@ -70,6 +68,7 @@ export class Secure {
             throw new Error("Invalid public key on new node!");
         }
 
+        console.log(nodeProfile.public_key);
         const pubKey = await PublicKey.fromDer(nodeProfile.public_key);
         if (!envelope.verifyWith(pubKey)) {
             throw new Error(`Signature ${envelope.signature} is invalid.`);

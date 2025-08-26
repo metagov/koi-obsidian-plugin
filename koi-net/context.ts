@@ -29,7 +29,7 @@ export class HandlerContext {
     graph: NetworkGraph;
     requestHandler: RequestHandler;
     effector: Effector;
-    private _processor?: ProcessorInterface;
+    processor: ProcessorInterface;
 
     constructor({ identity, config, cache, eventQueue, graph, requestHandler, effector }: {
         identity: NodeIdentity,
@@ -47,14 +47,9 @@ export class HandlerContext {
         this.graph = graph;
         this.requestHandler = requestHandler;
         this.effector = effector;
-        this._processor = undefined;
     }
 
     setProcessor(processor: ProcessorInterface) {
-        this._processor = processor;
-    }
-
-    get handle() {
-        return this._processor!.handle;
+        this.processor = processor;
     }
 }
