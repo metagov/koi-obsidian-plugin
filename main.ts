@@ -44,9 +44,9 @@ export default class KoiPlugin extends Plugin {
         await this.loadSettings();
         this.addSettingTab(new KoiSettingTab(this.app, this));
         
-        this.vaultId = this.app.appId;
+        this.vaultId = (this.app as unknown as { appId: string }).appId;
 
-        window.plugin = this;
+        // window.plugin = this;
 
         this.config = this.settings.config;
 
@@ -185,7 +185,8 @@ export default class KoiPlugin extends Plugin {
             ridTypes: ["orn:obsidian.note"],
             func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
                 const {reference} = parseRidString(kobj.rid);
-                if (reference?.startsWith(this.vaultId)) {
+
+                if (kobj.source && reference?.startsWith(this.vaultId)) {
                     console.log("EVENT BOUNCING BACK FROM MANAGER");
                     return STOP_CHAIN;
                 }

@@ -147,7 +147,7 @@ export class RequestHandler {
 
     async fetchManifests({ node, req }: {
         node: string,
-        req: Omit<FetchManifestsReq, "type">
+        req: any
     }): Promise<ManifestsPayload> {
         return await this.makeRequest({
             node,
