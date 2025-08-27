@@ -1,133 +1,170 @@
 import KoiPlugin from "main";
-import { App, normalizePath, stringifyYaml, TFile } from "obsidian";
+import { App, normalizePath, stringifyYaml, TAbstractFile, TFile, Vault } from "obsidian";
 import type { KoiPluginSettings } from "settings";
 import * as Handlebars from 'handlebars';
 import { Notice } from "obsidian";
-import { Effector } from "effector";
 import { KoiCache } from "rid-lib/ext/cache";
+import { Effector } from "koi-net/effector";
+import { parseRidString } from "rid-lib/utils";
 
 
 export class TelescopeFormatter {
-	plugin: KoiPlugin;
-	app: App;
-	settings: KoiPluginSettings;
-	cache: KoiCache;
-	effector: Effector;
-	handleBarTemplate: Handlebars.TemplateDelegate;
+    plugin: KoiPlugin;
+    app: App;
+    settings: KoiPluginSettings;
+    cache: KoiCache;
+    effector: Effector;
+    handleBarTemplates: Record<string, Handlebars.TemplateDelegate>;
 
-	constructor(plugin: KoiPlugin, cache: KoiCache, effector: Effector) {
-		this.plugin = plugin;
+    constructor(plugin: KoiPlugin, cache: KoiCache, effector: Effector) {
+        this.plugin = plugin;
         this.app = plugin.app;
         this.settings = plugin.settings;
-		this.cache = cache;
-		this.effector = effector;
+        this.cache = cache;
+        this.effector = effector;
 
-		Handlebars.registerHelper("json", (data) => JSON.stringify(data));
-		Handlebars.registerHelper("yaml", (data) => stringifyYaml(data));
-		Handlebars.registerHelper("stringPrefix", (prefixLength: number, data: string) => {
-			if (data.length > prefixLength) {
-				return data.substring(0, prefixLength - 3) + "...";
-			} else {
-				return data;
-			}
-		});
-		Handlebars.registerHelper("parseUsers", function (path: string, text: string) {
-			return text.replace(
-				/<@([A-Z0-9]+)>/g,
-				(match, userId) => path.replace(/\$userId/g, userId).replace(/\$userName/g, this.userNameLookup[userId] || userId)
-			)
-		})
-	}
+        this.handleBarTemplates = {};
 
-	async compileTemplate(): Promise<void> {
-		const file = this.app.vault.getFileByPath(
-			normalizePath(this.settings.templatePath));
+        Handlebars.registerHelper("json", (data) => JSON.stringify(data));
+        Handlebars.registerHelper("yaml", (data) => stringifyYaml(data));
+        Handlebars.registerHelper("stringPrefix", (prefixLength: number, data: string) => {
+            if (data.length > prefixLength) {
+                return data.substring(0, prefixLength - 3) + "...";
+            } else {
+                return data;
+            }
+        });
+        Handlebars.registerHelper("parseUsers", function (path: string, text: string) {
+            return text.replace(
+                /<@([A-Z0-9]+)>/g,
+                (match, userId) => path.replace(/\$userId/g, userId).replace(/\$userName/g, this.userNameLookup[userId] || userId)
+            )
+        })
+    }
 
-		if (!file) {
-			new Notice("Failed to compile HandleBar Template");
-			return;
-		}
+    async compileTemplates(): Promise<void> {
+        const folder = this.app.vault.getFolderByPath(
+            this.settings.templatePath
+        );
 
-		const templateString = await this.app.vault.read(file);
-		this.handleBarTemplate = Handlebars.compile(templateString);
-	}
+        if (!folder) {
+            console.log("template folder doesn't exist");
+            return;
+        }
 
-	getFileName(rid: string): string {
-		return btoa(rid) + ".md";
-	};
+        const files: Array<TFile> = [];
+        Vault.recurseChildren(
+            folder, (file: TAbstractFile) => {
+                if (file instanceof TFile)
+                    files.push(file);
+            }
+        )
 
-	getFilePath(rid: string): string {
-		return this.settings.koiSyncFolderPath + "/" + this.getFileName(rid);
-	}
+        for (const file of files) {
+            const namespace = file.basename;
+            const ridType = `orn:${namespace}`;
 
-	getFileObject(rid: string): TFile | null {
-		return this.app.vault.getFileByPath(
-			this.getFilePath(rid)
-		);
-	}
+            console.log(`found template for ${ridType}`);
+            
+            const templateString = await this.app.vault.read(file);
 
-	async rewriteAll(notice: Notice | null = null) {
-		const telescopeRids = this.cache.listRids()
-			.filter(str => str.startsWith("orn:telescoped"));
-		let count = 0;
-		for (const rid of telescopeRids) {
-			await this.write(rid);
-			count++;
-			if (notice) notice.setMessage(`Formatting telescopes... (${count}/${telescopeRids.length})`);
-		}
-		if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
-	}
+            console.log(templateString);
 
-	async writeMultiple(rids: Array<string>) {
-		const telescopeRids = rids.filter(rid => rid.startsWith("orn:telescoped"));
-		const notice = new Notice("", 0);
-		let count = 0;
-		for (const rid of telescopeRids) {
-			await this.write(rid);
-			count++;
-			if (notice) notice.setMessage(`Formatting telescopes... (${count}/${telescopeRids.length})`);
-		}
-		if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
+            const formattedTemplateString = templateString.replace(/^```\n?([\s\S]*?)```\n?/, '$1');
 
-		setTimeout(() => {
-			notice.hide();
-		}, 3000);
-	}
+            console.log(formattedTemplateString);
 
-	async write(rid: string) {
-		const bundle = await this.cache.read(rid);
-		if (!bundle) return;
+            this.handleBarTemplates[ridType] = Handlebars.compile(formattedTemplateString);
+        }
+    }
 
-		const data = Object.assign({}, bundle.contents)
-		data.obsidian_filename = this.getFileName(rid);
-		data.obsidian_filepath = this.getFilePath(rid);
-		const rawText = <string>bundle.contents.text;
+    getFileName(rid: string): string {
+        return btoa(rid) + ".md";
+    };
 
-		const captureUserId = /<@([A-Z0-9]+)>/g;
-		const userNameLookup: Record<string, string | unknown> = {};
-		const userIds = [...rawText.matchAll(captureUserId)].map(m => m[1]);
-		for (const userId of userIds) {
-			const userRid = `orn:slack.user:${data.team_id}/${userId}`
-			const bundle = await this.effector.dereference(userRid);
-			userNameLookup[userId] = bundle?.contents.real_name;
-		}
-		data.userNameLookup = userNameLookup;
+    getFilePath(rid: string): string {
+        return this.settings.koiSyncFolderPath + "/" + this.getFileName(rid);
+    }
 
-		const formattedOutput = this.handleBarTemplate(data);
-		
-		const file = this.getFileObject(rid);
-		if (file) {
-			// console.log("modified file");
-			await this.app.vault.process(file, () => formattedOutput)
-		} else {
-			// console.log("created new file");
-			await this.app.vault.create(this.getFilePath(rid), formattedOutput)
-		}
-	}
+    getFileObject(rid: string): TFile | null {
+        return this.app.vault.getFileByPath(
+            this.getFilePath(rid)
+        );
+    }
 
-	async delete(rid: string) {
-		const file = this.getFileObject(rid);
-		if (file) await this.app.vault.delete(file);
-	}
+    // async rewriteAll(notice?: Notice) {
+    //     const telescopeRids = this.cache.listRids()
+    //         .filter(str => str.startsWith("orn:telescoped"));
+    //     let count = 0;
+    //     for (const rid of telescopeRids) {
+    //         await this.write(rid);
+    //         count++;
+    //         if (notice) notice.setMessage(`Formatting bundles... (${count}/${telescopeRids.length})`);
+    //     }
+    //     if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
+    // }
+
+    async writeMultiple(rids: Array<string>) {
+        const notice = new Notice("", 0);
+        let count = 0;
+        for (const rid of rids) {
+            await this.write(rid);
+            count++;
+            if (notice) notice.setMessage(`Formatting bundles... (${count}/${rids.length})`);
+        }
+        if (notice) notice.setMessage(`Done formatting! (${count}/${rids.length})`);
+
+        setTimeout(() => {
+            notice.hide();
+        }, 3000);
+    }
+
+    async write(rid: string) {
+        const bundle = await this.cache.read(rid);
+        if (!bundle) return;
+
+        const data = Object.assign({}, bundle.contents)
+        data.obsidian_filename = this.getFileName(rid);
+        data.obsidian_filepath = this.getFilePath(rid);
+
+        const {ridType} = parseRidString(rid);
+
+        if (ridType === 'orn:telescopeod') {
+            const rawText = <string>bundle.contents.text;
+
+            const captureUserId = /<@([A-Z0-9]+)>/g;
+            const userNameLookup: Record<string, string | unknown> = {};
+            const userIds = [...rawText.matchAll(captureUserId)].map(m => m[1]);
+            for (const userId of userIds) {
+                const userRid = `orn:slack.user:${data.team_id}/${userId}`
+                const bundle = await this.effector.deref({ rid: userRid });
+                userNameLookup[userId] = bundle?.contents.real_name;
+            }
+            data.userNameLookup = userNameLookup;
+        } else if (ridType === 'orn:obsidian.note') {
+
+        }
+
+        let formattedOutput: string;
+        if (ridType in this.handleBarTemplates) {        
+            formattedOutput = this.handleBarTemplates[ridType](data);
+        } else {
+            formattedOutput = JSON.stringify(data);
+        }
+
+        const file = this.getFileObject(rid);
+        if (file) {
+            // console.log("modified file");
+            await this.app.vault.process(file, () => formattedOutput)
+        } else {
+            // console.log("created new file");
+            await this.app.vault.create(this.getFilePath(rid), formattedOutput)
+        }
+    }
+
+    async delete(rid: string) {
+        const file = this.getFileObject(rid);
+        if (file) await this.app.vault.delete(file);
+    }
 
 }

@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         },
         priv_key: null
     },
-	koiSyncFolderPath: "telescope",
+	koiSyncFolderPath: "koi",
 	templatePath: "telescope-template.md",
     initialized: false,
     
@@ -98,7 +98,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.templatePath)
                 .onChange(async (value) => {
                     this.plugin.settings.templatePath = value;
-                    await this.plugin.fileFormatter.compileTemplate();
+                    // await this.plugin.fileFormatter.compileTemplate();
                     await this.plugin.saveSettings();
                 }));
     }

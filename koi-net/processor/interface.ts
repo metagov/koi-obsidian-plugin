@@ -12,7 +12,6 @@ export class ProcessorInterface {
     constructor({pipeline}: {
         pipeline: KnowledgePipeline
     }) {
-        console.log("initializing");
         this.pipeline = pipeline;
         this.kobjQueue = [];
     }

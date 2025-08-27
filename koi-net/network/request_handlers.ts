@@ -27,6 +27,7 @@ import { Secure } from "koi-net/secure";
 import { SignedEnvelope } from "koi-net/protocol/envelope";
 import { KoiNetConfigSchema } from "koi-net/config";
 
+
 export class RequestHandler {
     config: KoiNetConfigSchema;
     secure: Secure;
@@ -91,7 +92,10 @@ export class RequestHandler {
         const result = await requestUrl({
             url, method: "POST",
             body: JSON.stringify(signedEnvelope),
+            // throw: false
         });
+        
+        // console.log(result);
 
         if (result.status !== 200) {
             console.error(result.text);

@@ -16,8 +16,8 @@ export const FetchRidsReq = z.object({
 
 export const FetchManifestsReq = z.object({
     type: z.literal("fetch_manifests").default("fetch_manifests"),
-    rid_types: z.array(z.string()).optional(),
-    rids: z.array(z.string()).optional()
+    rid_types: z.array(z.string()).default([]),
+    rids: z.array(z.string()).default([])
 });
 
 export const FetchBundlesReq = z.object({
