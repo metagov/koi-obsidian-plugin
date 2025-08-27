@@ -12,6 +12,7 @@ import { sha256Hash } from 'rid-lib/ext/utils';
 import { EventsPayload } from 'koi-net/protocol/api_models';
 import { KoiEvent } from 'koi-net/protocol/event';
 import { randomUUID, UUID } from 'crypto';
+import { Bundle } from 'rid-lib/ext/bundle';
 
 
 export default class KoiPlugin extends Plugin {
@@ -175,6 +176,43 @@ export default class KoiPlugin extends Plugin {
             callback: async () => {
                 await this.fileFormatter.writeMultiple(
                     this.node.cache.listRids()
+                );
+            }
+        })
+
+        this.addCommand({
+            id: 'track-this-note',
+            name: 'Track this note',
+            callback: async () => {
+                const activeFile = this.app.workspace.getActiveFile();
+
+                if (!(activeFile instanceof TFile)) return;
+
+
+                await this.app.fileManager.processFrontMatter(
+                    activeFile,
+                    async (frontmatter) => {
+                        let rid: string;
+
+                        if (!frontmatter.rid) {
+                            rid = `orn:obsidian.note:${this.app.appId}/${randomUUID()}`;
+                            frontmatter.rid = rid;
+                        } else {
+                            rid = frontmatter.rid;
+                        }
+
+                        const data = await this.app.vault.read(activeFile);
+                        this.node.processor.handle({
+                            bundle: Bundle.generate({
+                                rid, 
+                                contents: {
+                                    text: data
+                                }
+                            })
+                        });
+
+                        await this.node.processor.flushKobjQueue();
+                    }
                 );
             }
         })

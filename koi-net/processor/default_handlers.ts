@@ -6,6 +6,7 @@ import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { sha256Hash } from "rid-lib/ext/utils";
 import { EdgeProfileSchema, EdgeStatus, EdgeType, generateEdgeBundle } from "koi-net/protocol/edge";
 import { Bundle } from "rid-lib/ext/bundle";
+import { parseRidString } from "rid-lib/utils";
 
 
 export const basicRidHandler = new KnowledgeHandler({
@@ -199,13 +200,13 @@ export const basicNetworkOutputFilter = new KnowledgeHandler({
             }
         }
 
-
-        const ridType = kobj.rid.split(":", 1)[0];
+        const { ridType } = parseRidString(kobj.rid);
         if (ctx.identity.profile.provides.event.contains(ridType) || involvesMe) {
             const subscribers = await ctx.graph.getNeighbors({
                 direction: "out",
                 allowedType: ridType
             });
+            console.log(`sending event to subscribers: ${subscribers}`);
             kobj.networkTargets.push(...subscribers);
         }
 

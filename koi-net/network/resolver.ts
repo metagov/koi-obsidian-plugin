@@ -35,23 +35,23 @@ export class NetworkResolver {
     }
 
     async pollNeighbors(): Promise<Record<string, Array<KoiEvent>>> {
-        const graphNeighbors = await this.graph.getNeighbors();
         const neighbors = new Set<string>();
 
-        if (graphNeighbors.length) {
-            for (const nodeRid of graphNeighbors) {
-                const nodeBundle = await this.cache.read(nodeRid);
-                if (!nodeBundle) continue;
-                const nodeProfile = nodeBundle.validateContents(NodeProfileSchema);
-                if (nodeProfile.node_type !== "FULL") continue;
-                neighbors.add(nodeRid);
-            }
-        } else if (this.config.first_contact.rid) {
+        for (const nodeRid of this.cache.listRids(["orn:koi-net.node"])) {
+            const nodeBundle = await this.cache.read(nodeRid);
+            if (!nodeBundle) continue;
+            const nodeProfile = nodeBundle.validateContents(NodeProfileSchema);
+            if (nodeProfile.node_type !== "FULL") continue;
+            neighbors.add(nodeRid);
+        }
+        
+        if (this.config.first_contact.rid) {
             neighbors.add(this.config.first_contact.rid);
         }
 
         const eventsMap: Record<string, Array<KoiEvent>> = {};
         for (const nodeRid of neighbors) {
+            console.log(`polling ${nodeRid}`);
             const payload = await this.requestHandler.pollEvents({ 
                 node: nodeRid, 
                 req: {limit: 0} 
