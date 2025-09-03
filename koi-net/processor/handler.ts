@@ -14,19 +14,22 @@ type OptionalPromise<T> = T | Promise<T>;
 
 export class KnowledgeHandler {
     func: (ctx: HandlerContext, kobj: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | undefined | void>;
+    name: string;
     handlerType: HandlerType;
     ridTypes?: Array<string>;
     source?: string;
     public eventTypes?: Array<EventType | undefined>;
 
-    constructor({ func, handlerType, ridTypes, source, eventTypes }: {
+    constructor({ func, name, handlerType, ridTypes, source, eventTypes }: {
         func: (ctx: HandlerContext, kobj: KnowledgeObject) => OptionalPromise<KnowledgeObject | StopChain | undefined | void>;
+        name: string;
         handlerType: HandlerType;
         ridTypes?: Array<string>;
         source?: string;
         eventTypes?: Array<EventType | undefined>;
     }) {
         this.func = func;
+        this.name = name;
         this.handlerType = handlerType;
         this.ridTypes = ridTypes;
         this.source = source;

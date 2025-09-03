@@ -6,6 +6,7 @@ export interface KoiPluginSettings {
     config: KoiNetConfigSchema;
 	koiSyncFolderPath: string;
 	templatePath: string;
+    interestedRidTypes: Array<string>;
     vaultId: string | undefined;
     initialized: boolean;
 }
@@ -32,6 +33,9 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
     },
 	koiSyncFolderPath: "koi",
 	templatePath: "koi-templates",
+    interestedRidTypes: [
+        "orn:obsidian.note"
+    ],
     vaultId: undefined,
     initialized: false
     
@@ -52,7 +56,7 @@ export class KoiSettingTab extends PluginSettingTab {
         
         new Setting(containerEl)
             .setName('KOI-net node RID')
-            .setDesc('The RID of this plugin\'s KOI-net node')
+            .setDesc('The RID of this node')
             .addText(text => text
                 .setPlaceholder('orn:koi-net.node:...')
                 .setValue(this.plugin.settings.config.node_rid || ''))
@@ -60,7 +64,7 @@ export class KoiSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('KOI-net first contact RID')
-            .setDesc('RID of the KOI-net node this plugin will establish first contact with')
+            .setDesc('RID of the KOI-net node this node will establish first contact with')
             .addText(text => text
                 .setPlaceholder('orn:koi-net.node:...')
                 .setValue(this.plugin.settings.config.first_contact.rid || '')
@@ -71,7 +75,7 @@ export class KoiSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('KOI-net first contact URL')
-            .setDesc('URL of the KOI-net node this plugin will establish first contact with')
+            .setDesc('URL of the KOI-net node this node will establish first contact with')
             .addText(text => text
                 .setPlaceholder('https://')
                 .setValue(this.plugin.settings.config.first_contact.url || '')
@@ -79,6 +83,18 @@ export class KoiSettingTab extends PluginSettingTab {
                     this.plugin.settings.config.first_contact.url = value;
                     await this.plugin.saveSettings();
                 }));
+
+        new Setting(containerEl)
+            .setName('Interested RID types')
+            .setDesc('The RID types this node should subscribe to events for (enter one RID type per line)')
+            .addTextArea(text => text
+                .setPlaceholder('orn:obsidian.note|orn:telescoped')
+                .setValue(this.plugin.settings.interestedRidTypes.join('\n'))
+                .onChange(async (value) => {
+                    this.plugin.settings.interestedRidTypes = value.split('\n');
+                    await this.plugin.saveSettings();
+                })
+            )
 
         new Setting(containerEl)
             .setName('Sync directory path')

@@ -56,18 +56,17 @@ export class KnowledgePipeline {
             if (handler.source && handler.source != kobj.source) continue;
             if (handler.eventTypes && !(handler.eventTypes.includes(kobj.eventType))) continue;
             
-            console.log(`calling ${handler.func.name}`)
             const resp = handler.func(this.handlerContext, kobj);
             const result = (resp instanceof Promise) ? await resp : resp;
 
             if (result === STOP_CHAIN) {
-                console.log("returned STOP_CHAIN")
+                console.log(`Handler chain stopped by ${handler.name}`);
                 return STOP_CHAIN;
             } else if (result === undefined) {
-                console.log("kobj unchanged")
                 continue
             } else {
-                console.log("kobj modified")
+                console.log(`kobj modified by ${handler.name}`);
+                console.log(`new kobj: ${kobj.stringify()}`);
                 kobj = result;
             }
         }
@@ -78,12 +77,10 @@ export class KnowledgePipeline {
     async process(_kobj: KnowledgeObject) {
         let kobj: KnowledgeObject | StopChain = _kobj;
         
-        console.log(`initial: ${kobj.stringify()}`);
+        // console.log(`handling ${kobj.stringify()}`);
 
         kobj = await this.callHandlerChain(HandlerType.RID, kobj);
         if (kobj === STOP_CHAIN) return;
-
-        console.log(`rid: ${kobj.stringify()}`);
 
         if (kobj.eventType === EventType.enum.FORGET) {
             const bundle = await this.cache.read(kobj.rid);
@@ -98,7 +95,7 @@ export class KnowledgePipeline {
                 
                 if (!kobj.source) return;
 
-                console.log("attempting to fetch manifest")
+                console.log("attempting to fetch remote manifest from source")
 
                 const payload = await this.requestHandler.fetchManifests({
                     node: kobj.source,
@@ -116,14 +113,12 @@ export class KnowledgePipeline {
             kobj = await this.callHandlerChain(HandlerType.Manifest, kobj);
             if (kobj === STOP_CHAIN) return;
 
-            console.log(`manifest: ${kobj.stringify()}`);
-
             if (!kobj.bundle) {
                 console.log("bundle not found")
 
                 if (!kobj.source) return;
 
-                console.log("attempting to fetch bundle")
+                console.log("attempting to fetch remote bundle from source");
 
                 const payload = await this.requestHandler.fetchBundles({
                     node: kobj.source,
@@ -145,18 +140,16 @@ export class KnowledgePipeline {
         kobj = await this.callHandlerChain(HandlerType.Bundle, kobj);
         if (kobj === STOP_CHAIN) return;
 
-        console.log(`bundle: ${kobj.stringify()}`);
-
 
         if (kobj.normalizedEventType === EventType.enum.NEW || 
             kobj.normalizedEventType === EventType.enum.UPDATE) {
-            console.log("writing to cache");
+            console.log(`writing to cache: ${kobj.stringify()}`);
             await this.cache.write(kobj.bundle as Bundle);
         } else if (kobj.normalizedEventType === EventType.enum.FORGET) {
-            console.log("deleting from cache");
+            console.log(`deleting from cache: ${kobj.stringify()}`);
             await this.cache.delete(kobj.rid);
         } else {
-            console.log("no normalized event set, exiting...");
+            console.log("no normalized event set, stopping");
             return;
         }
 
@@ -168,7 +161,7 @@ export class KnowledgePipeline {
         kobj = await this.callHandlerChain(HandlerType.Network, kobj);
         if (kobj === STOP_CHAIN) return;
 
-        console.log(`network: ${kobj.stringify()}`);
+        console.log(`broadcasting event to ${kobj.networkTargets.length} target(s)`);
 
         for (const node of kobj.networkTargets) {
             await this.eventQueue.pushEventTo({
@@ -178,6 +171,5 @@ export class KnowledgePipeline {
         }
 
         await this.callHandlerChain(HandlerType.Final, kobj);
-        console.log(`final: ${kobj.stringify()}`);
     }
 }

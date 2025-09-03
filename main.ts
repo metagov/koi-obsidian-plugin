@@ -174,15 +174,6 @@ export default class KoiPlugin extends Plugin {
 
 
         // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
-        // const templateFile = this.app.vault.getFileByPath(
-        //     this.settings.templatePath);
-        // if (!templateFile) {
-        //     await this.app.vault.create(
-        //         this.settings.templatePath,
-        //         defaultTelescopeTemplate
-        //     );
-        //     new Notice("Generated default telescope formatting template");
-        // }
 
         // console.log("ready");
         // this.node.cache.listRids();

@@ -41,8 +41,13 @@ export class Indexer {
         console.log(this.fileIndex);
     }
 
-    listRids() {
-        return Object.values(this.fileIndex);
+    listRids(): Array<string> {
+        const rids = [];
+        for (const [filePath, rid] of Object.entries(this.fileIndex)) {
+            if (rid)
+                rids.push(rid);
+        }
+        return rids;
     }
 
     async modifyNote(file: TFile) {
@@ -52,7 +57,7 @@ export class Indexer {
         if (!(file.path in this.fileIndex))
             return;
         
-        console.log("modifying note")
+        console.log(`modifying note ${file.path}`);
 
         await this.handleFile(file);
     }
@@ -98,7 +103,7 @@ export class Indexer {
         await this.app.fileManager.processFrontMatter(
             file,
             async (frontmatter) => {
-                console.log("frontmatter!", frontmatter);
+                // console.log("frontmatter!", frontmatter);
 
                 if (frontmatter.koi_net_enabled === false) {
                     console.log("forgetting", frontmatter.rid);

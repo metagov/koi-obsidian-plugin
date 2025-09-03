@@ -10,11 +10,9 @@ import { parseRidString } from "rid-lib/utils";
 
 
 export const basicRidHandler = new KnowledgeHandler({
+    name: "basic_rid_handler",
     handlerType: HandlerType.RID,
     func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
-
-        console.log(kobj.rid);
-
         if (kobj.rid === ctx.identity.rid && kobj.source) 
             return STOP_CHAIN;
 
@@ -26,6 +24,7 @@ export const basicRidHandler = new KnowledgeHandler({
 })
 
 export const basicManifestHandler = new KnowledgeHandler({
+    name: "basic_manifest_handler",
     handlerType: HandlerType.Manifest,
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         const prevBundle = await ctx.cache.read(kobj.rid);
@@ -56,6 +55,7 @@ export const basicManifestHandler = new KnowledgeHandler({
 })
 
 export const secureProfileHandler = new KnowledgeHandler({
+    name: "secure_profile_handler",
     handlerType: HandlerType.Bundle,
     ridTypes: ["orn:koi-net.node"],
     eventTypes: [EventType.enum.NEW, EventType.enum.UPDATE],
@@ -69,6 +69,7 @@ export const secureProfileHandler = new KnowledgeHandler({
 })
 
 export const edgeNegotiationHandler = new KnowledgeHandler({
+    name: "edge_negotiation_handler",
     handlerType: HandlerType.Bundle,
     ridTypes: ["orn:koi-net.edge"],
     eventTypes: [EventType.enum.NEW, EventType.enum.UPDATE],
@@ -139,6 +140,7 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
 })
 
 export const coordinatorContact = new KnowledgeHandler({
+    name: "coordinator_contact",
     handlerType: HandlerType.Network,
     ridTypes: ["orn:koi-net.node"],
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
@@ -172,14 +174,13 @@ export const coordinatorContact = new KnowledgeHandler({
             req: {rid_types: ["orn:koi-net.node"]}
         });
         for (const rid of payload.rids) {
-            if (rid === ctx.identity.rid) continue;
-            if (ctx.cache.exists(rid)) continue;
             ctx.processor.handle({rid, source: kobj.rid});
         }
     }
 });
 
 export const basicNetworkOutputFilter = new KnowledgeHandler({
+    name: "basic_network_output_filter",
     handlerType: HandlerType.Network,
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         let involvesMe: boolean = false;
@@ -215,6 +216,7 @@ export const basicNetworkOutputFilter = new KnowledgeHandler({
 })
 
 export const forgetEdgeOnNodeDeletion = new KnowledgeHandler({
+    name: "forget_edge_on_node_deletion",
     handlerType: HandlerType.Final,
     ridTypes: ["orn:koi-net.node"],
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {

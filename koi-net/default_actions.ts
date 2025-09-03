@@ -5,7 +5,6 @@ import { EffectorAction } from "./effector";
 export const dereferenceKoiNode: EffectorAction = (
     ctx: ActionContext, rid: string
 ) => {
-    console.log("deref koi node")
     if (rid !== ctx.identity.rid) return;
 
     return Bundle.generate({

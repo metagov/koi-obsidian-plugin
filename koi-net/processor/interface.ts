@@ -19,7 +19,10 @@ export class ProcessorInterface {
     async flushKobjQueue() {
         while (this.kobjQueue.length > 0) {
             const kobj = this.kobjQueue.shift();
-            if (kobj) await this.pipeline.process(kobj);
+            if (kobj) {
+                console.log(`Dequeued ${kobj.stringify()}`);
+                await this.pipeline.process(kobj);
+            }
         }
     }
 
@@ -47,7 +50,7 @@ export class ProcessorInterface {
             throw "One of 'rid', 'manifest', 'bundle', 'event', or 'kobj' must be provided";
         }
 
-        console.log("kobj", _kobj);
+        console.log(`Queued ${_kobj.stringify()}`);
         this.kobjQueue.push(_kobj);
     }
 }

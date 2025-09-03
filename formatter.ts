@@ -81,7 +81,7 @@ public_key: {{public_key}}
 {{{yaml frontmatter}}}
 path: {{path}}
 aliases:
-- {{basename}}
+- {{basename}} ~linked
 ---
 \`\`\`
 # {{basename}}
@@ -170,6 +170,7 @@ aliases:
 
         }
 
+
         let formattedOutput: string;
         if (ridType in this.handleBarTemplates) {        
             formattedOutput = this.handleBarTemplates[ridType](data);
@@ -181,6 +182,9 @@ aliases:
         if (file) {
             // console.log("modified file");
             await this.app.vault.process(file, () => formattedOutput)
+            const metadata = this.app.metadataCache.getFileCache(file);
+            console.log(`${rid} metadata:`);
+            console.log(metadata);
         } else {
             // console.log("created new file");
             await this.app.vault.create(this.getFilePath(rid), formattedOutput)
