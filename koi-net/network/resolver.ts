@@ -56,6 +56,12 @@ export class NetworkResolver {
                 node: nodeRid, 
                 req: {limit: 0} 
             });
+
+            // console.log(payload);
+
+            if (!payload) {
+                continue;
+            }
             
             if (payload.type !== "events_payload") {
                 continue;

@@ -41,10 +41,10 @@ export class Effector {
     }
 
     async tryCache(rid: string): Promise<[Bundle, string] | undefined> {
-        console.log("try cache");
+        // console.log("try cache");
         const bundle = await this.cache.read(rid);
         if (bundle) {
-            console.log("cache hit");
+            // console.log("cache hit");
             return [bundle, "cache"];
         } else {
             return
@@ -52,11 +52,11 @@ export class Effector {
     }
 
     async tryAction(rid: string): Promise<[Bundle, string] | undefined> {
-        console.log("try action");
+        // console.log("try action");
         let action;
         for (const ridType of Object.keys(this.actionTable)) {
             if (rid.startsWith(ridType)) {
-                console.log("found action")
+                // console.log("found action")
                 action = this.actionTable[ridType];
                 break;
             }
@@ -64,12 +64,12 @@ export class Effector {
         if (!action) return;
         const bundle = action(this.actionContext, rid);
         if (!bundle) return;
-        console.log("action hit");
+        // console.log("action hit");
         return [bundle, "action"];
     }
 
     async tryNetwork(rid: string): Promise<[Bundle, string] | undefined> {
-        console.log("try network");
+        // console.log("try network");
         return;
     }
 
@@ -84,7 +84,7 @@ export class Effector {
         useNetwork?: boolean,
         handleResult?: boolean
     }): Promise<Bundle | undefined> {
-        console.log("dereferencing", rid);
+        // console.log("dereferencing", rid);
 
         const [bundle, source] = (
             (!refreshCache) && (await this.tryCache(rid)) ||
@@ -93,7 +93,7 @@ export class Effector {
             [undefined, undefined]
         );
 
-        if (!bundle) console.log("all miss");
+        // if (!bundle) console.log("all miss");
 
         if (handleResult && bundle && source !== "cache") {
             this.processor.handle({

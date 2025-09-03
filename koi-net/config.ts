@@ -13,18 +13,18 @@ export const PrivKeySchema = z.object({
 });
 
 export const NodeContactSchema = z.object({
-    rid: z.string().nullable(),
-    url: z.string().nullable()
+    rid: z.string().optional(),
+    url: z.string().optional()
 });
 
 export const KoiNetConfigSchema = z.object({
     node_name: z.string(),
-    node_rid: z.string().nullable(),
+    node_rid: z.string(),
     node_profile: NodeProfileSchema,
     cache_directory_path: z.string(),
     polling_interval: z.number(),
     first_contact: NodeContactSchema,
-    priv_key: PrivKeySchema.nullable()
+    priv_key: PrivKeySchema.optional()
 });
 
 export type PrivKeySchema = z.infer<typeof PrivKeySchema>;

@@ -43,14 +43,51 @@ export class TelescopeFormatter {
     }
 
     async compileTemplates(): Promise<void> {
-        const folder = this.app.vault.getFolderByPath(
+        let folder;
+        folder = this.app.vault.getFolderByPath(
             this.settings.templatePath
         );
 
         if (!folder) {
             console.log("template folder doesn't exist");
-            return;
-        }
+            folder = await this.app.vault.createFolder(this.settings.templatePath);
+            await this.app.vault.create(
+                `${this.settings.templatePath}/koi-net.node.md`,
+                `\`\`\`
+---
+rid: {{rid}}
+timestamp: {{timestamp}}
+sha256_hash: {{sha256_hash}}
+base_url: {{base_url}}
+node_type: {{node_type}}
+provides_event: {{provides.event}}
+provides_state: {{provides.state}}
+public_key: {{public_key}}
+---
+\`\`\``
+            );
+            await this.app.vault.create(
+                `${this.settings.templatePath}/koi-net.edge.md`,
+                `\`\`\`
+---
+{{{yaml this}}}
+---
+\`\`\``
+            );
+            await this.app.vault.create(
+                `${this.settings.templatePath}/obsidian.note.md`,
+                `\`\`\`
+---
+{{{yaml frontmatter}}}
+path: {{path}}
+aliases:
+- {{basename}}
+---
+\`\`\`
+# {{basename}}
+{{{text}}}`
+            );
+        };
 
         const files: Array<TFile> = [];
         Vault.recurseChildren(
@@ -68,11 +105,7 @@ export class TelescopeFormatter {
             
             const templateString = await this.app.vault.read(file);
 
-            console.log(templateString);
-
             const formattedTemplateString = templateString.replace(/^```\n?([\s\S]*?)```\n?/, '$1');
-
-            console.log(formattedTemplateString);
 
             this.handleBarTemplates[ridType] = Handlebars.compile(formattedTemplateString);
         }
@@ -91,18 +124,6 @@ export class TelescopeFormatter {
             this.getFilePath(rid)
         );
     }
-
-    // async rewriteAll(notice?: Notice) {
-    //     const telescopeRids = this.cache.listRids()
-    //         .filter(str => str.startsWith("orn:telescoped"));
-    //     let count = 0;
-    //     for (const rid of telescopeRids) {
-    //         await this.write(rid);
-    //         count++;
-    //         if (notice) notice.setMessage(`Formatting bundles... (${count}/${telescopeRids.length})`);
-    //     }
-    //     if (notice) notice.setMessage(`Done formatting! (${count}/${telescopeRids.length})`);
-    // }
 
     async writeMultiple(rids: Array<string>) {
         const notice = new Notice("", 0);
@@ -123,7 +144,11 @@ export class TelescopeFormatter {
         const bundle = await this.cache.read(rid);
         if (!bundle) return;
 
-        const data = Object.assign({}, bundle.contents)
+        const data = Object.assign({
+            "rid": bundle.manifest.rid,
+            "timestamp": bundle.manifest.timestamp,
+            "sha256_hash": bundle.manifest.sha256_hash
+        }, bundle.contents)
         data.obsidian_filename = this.getFileName(rid);
         data.obsidian_filepath = this.getFilePath(rid);
 

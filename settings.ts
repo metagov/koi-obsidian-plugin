@@ -6,6 +6,7 @@ export interface KoiPluginSettings {
     config: KoiNetConfigSchema;
 	koiSyncFolderPath: string;
 	templatePath: string;
+    vaultId: string | undefined;
     initialized: boolean;
 }
 
@@ -24,14 +25,15 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         cache_directory_path: "rid_cache",
         polling_interval: 5,
         first_contact: {
-            rid: null,
-            url: null
+            rid: undefined,
+            url: undefined
         },
-        priv_key: null
+        priv_key: undefined
     },
 	koiSyncFolderPath: "koi",
-	templatePath: "telescope-template.md",
-    initialized: false,
+	templatePath: "koi-templates",
+    vaultId: undefined,
+    initialized: false
     
 }
 

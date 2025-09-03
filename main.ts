@@ -1,4 +1,4 @@
-import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo } from 'obsidian';
+import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo, MetadataCache } from 'obsidian';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
@@ -9,16 +9,13 @@ import { KoiCache } from 'rid-lib/ext/cache';
 import { PrivateKey } from 'koi-net/protocol/secure';
 import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
-import { EventsPayload } from 'koi-net/protocol/api_models';
-import { EventType, KoiEvent } from 'koi-net/protocol/event';
-import { randomUUID, UUID } from 'crypto';
+import { EventType } from 'koi-net/protocol/event';
+import { randomUUID } from 'crypto';
 import { Bundle } from 'rid-lib/ext/bundle';
-import { HandlerType, KnowledgeHandler } from 'koi-net/processor/handler';
-import { HandlerContext } from 'koi-net/context';
-import { KnowledgeObject, STOP_CHAIN } from 'koi-net/processor/knowledge_object';
-import { NodeProfileSchema, NodeType } from 'koi-net/protocol/node';
-import { generateEdgeBundle } from 'koi-net/protocol/edge';
-import { parseRidString } from 'rid-lib/utils';
+import { configureNode } from 'node-configuration';
+import { SetupModal } from 'setup-modal';
+import { Indexer } from 'indexer';
+
 
 
 export default class KoiPlugin extends Plugin {
@@ -33,7 +30,7 @@ export default class KoiPlugin extends Plugin {
     connected: boolean;
     syncMutex: Mutex;
     fileFormatter: TelescopeFormatter;
-    reqHandler: RequestHandler;
+    indexer: Indexer;
 
     vaultId: string;
     poller: number;
@@ -43,25 +40,32 @@ export default class KoiPlugin extends Plugin {
 
         await this.loadSettings();
         this.addSettingTab(new KoiSettingTab(this.app, this));
-        
-        this.vaultId = (this.app as unknown as { appId: string }).appId;
+
+        this.settings.vaultId = (this.app as unknown as { appId: string }).appId;
+        this.saveSettings();
 
         // window.plugin = this;
 
         this.config = this.settings.config;
 
         this.cache = new KoiCache({
-            vault: this.app.vault, 
+            vault: this.app.vault,
             directoryPath: this.config.cache_directory_path
         });
-        
+
         this.node = new NodeInterface({
             cache: this.cache,
             config: this.config
         });
 
         this.fileFormatter = new TelescopeFormatter(this, this.cache, this.node.effector);
-        
+
+        this.indexer = new Indexer(this);
+
+        configureNode(this.node, this);
+
+        console.log("i am", this.node.identity.rid);
+
         this.syncMutex = new Mutex();
         this.connected = true;
 
@@ -69,7 +73,12 @@ export default class KoiPlugin extends Plugin {
         this.statusBarIcon = this.addStatusBarItem();
         this.statusBarIcon.addClass("koi-status-icon");
         this.statusBarIcon.setAttribute("data-tooltip-position", "top");
-        
+        this.statusBarIcon.addEventListener("click", async () => {
+            if (!this.settings.initialized) {
+                this.createSetupModal();
+            }
+        });
+
         // this.addCommand({
         // 	id: 'refresh-with-koi',
         // 	name: 'Refresh with KOI',
@@ -79,60 +88,19 @@ export default class KoiPlugin extends Plugin {
         // });
 
         this.addCommand({
-        	id: 'drop-rid-cache',
-        	name: 'Drop RID cache',
-        	callback: async () => {
-        		await this.cache.drop();
-        	}
+            id: 'drop-rid-cache',
+            name: 'Drop RID cache',
+            callback: async () => {
+                await this.cache.drop();
+            }
         });
 
-        class ExampleModal extends Modal {
-            constructor(app: App, onSubmit: (result: string) => void) {
-                super(app);
-                this.setContent("Set up your KOI node!");
-                let nodeName = "";
-            
-                new Setting(this.contentEl)
-                    .setName('Node name:')
-                    .addText((text) =>
-                        text.onChange((value) => {
-                            nodeName = value;
-                        }));
-                
-                new Setting(this.contentEl)
-                    .addButton((btn) =>
-                        btn
-                            .setButtonText("Submit")
-                            .setCta()
-                            .onClick(() => {
-                                this.close();
-                                onSubmit(nodeName);
-                            }));
-            }
-        }
 
         this.addCommand({
             id: 'set-node-rid',
             name: 'Set KOI-net node RID',
             callback: () => {
-                new ExampleModal(this.app, async (name) => {
-                    const privKey = await PrivateKey.generate();
-                    const pubKey = await privKey.publicKey();
-                    const pubKeyDer = await pubKey.toDer();
-                    const pubKeyHash = sha256Hash(pubKeyDer);
 
-                    const nodeRid = `orn:koi-net.node:${name}+${pubKeyHash}`;
-
-                    this.settings.config.node_rid = nodeRid;
-                    this.settings.config.priv_key = await privKey.toJwk();
-                    this.settings.config.node_profile.public_key = pubKeyDer;
-                    this.settings.initialized = true;
-                    await this.saveSettings();
-
-                    new Notice(`Node RID set to \`${nodeRid}\``);
-
-                    // await this.setup();
-                }).open();
             }
         })
 
@@ -158,92 +126,40 @@ export default class KoiPlugin extends Plugin {
             id: 'track-this-note',
             name: 'Track this note',
             callback: async () => {
-                const activeFile = this.app.workspace.getActiveFile();
-                if (!(activeFile instanceof TFile)) return;
-                await this.trackFile(activeFile);
+                const active = this.app.workspace.getActiveFile();
+                if (!(active instanceof TFile)) return;
+                await this.indexer.trackFile(active);
             }
         })
-
-        console.log("Registered");
 
         this.registerEvent(
             this.app.vault.on('modify', async (file: TFile) => {
+                if (file.path.startsWith(this.settings.templatePath)) {
+                    console.log("detect change in templates, recompiling...");
+                    await this.fileFormatter.compileTemplates();
+                    return;
+                }
 
-                if (file.parent?.name === this.settings.koiSyncFolderPath) return;
+                if (file.parent?.name === this.settings.koiSyncFolderPath)
+                    return;
 
-                console.log(file.name);
-                await this.handleFile(file);
-
-                // if (file.name !== this.settings.templatePath) return;
-                // console.log("compiling templates");
-                // await this.fileFormatter.compileTemplates();
+                await this.indexer.modifyNote(file);
             })
         );
 
-        const specialObsidianRidHandler = new KnowledgeHandler({
-            handlerType: HandlerType.RID,
-            ridTypes: ["orn:obsidian.note"],
-            func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
-                const {reference} = parseRidString(kobj.rid);
+        this.registerEvent(
+            this.app.vault.on('rename', async (
+                file: TFile, oldPath: string
+            ) => {
+                await this.indexer.renameNote(file, oldPath);
+            })
+        )
 
-                if (kobj.source && reference?.startsWith(this.vaultId)) {
-                    console.log("EVENT BOUNCING BACK FROM MANAGER");
-                    return STOP_CHAIN;
-                }
-            }
-        })
-
-        const formatterSyncHandler = new KnowledgeHandler({
-            handlerType: HandlerType.Network,
-            func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
-                console.log("NORMALIZED EVENT TYPE", kobj.normalizedEventType);
-                if (kobj.normalizedEventType === "FORGET") {
-                    await this.fileFormatter.delete(kobj.rid);
-                } else {
-                    await this.fileFormatter.write(kobj.rid);
-                }
-            }
-        })
-        const managerContactHandler = new KnowledgeHandler({
-            handlerType: HandlerType.Network,
-            ridTypes: ["orn:koi-net.node"],
-            func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
-                const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
-                console.log("found obsidian manager!", kobj.rid);
-                
-                if (!nodeProfile.provides.event?.contains("orn:obsidian.note"))
-                    return;
-        
-                if (kobj.rid === ctx.identity.rid)
-                    return;
-
-                if (nodeProfile.node_type !== NodeType.enum.FULL)
-                    return;
-
-                ctx.processor.handle({
-                    bundle: generateEdgeBundle({
-                        source: kobj.rid,
-                        target: ctx.identity.rid,
-                        edgeType: "POLL",
-                        ridTypes: ["orn:obsidian.note"]
-                    })
-                });
-
-                const payload = await ctx.requestHandler.fetchRids({
-                    node: kobj.rid,
-                    req: {rid_types: ["orn:obsidian.note"]}
-                });
-                for (const rid of payload.rids) {
-                    if (rid === ctx.identity.rid) continue;
-                    if (ctx.cache.exists(rid)) continue;
-                    ctx.processor.handle({rid, source: kobj.rid});
-                }
-            }
-        })
-
-        this.node.pipeline.addHandler(formatterSyncHandler);
-        this.node.pipeline.addHandler(managerContactHandler);
-        this.node.pipeline.addHandler(specialObsidianRidHandler);
+        this.registerEvent(
+            this.app.vault.on("delete", async (file: TFile) => {
+                await this.indexer.deleteNote(file);
+            })
+        )
 
         this.app.workspace.onLayoutReady(() => {
             console.log("calling setup");
@@ -252,6 +168,12 @@ export default class KoiPlugin extends Plugin {
     }
 
     async setup() {
+        if (!this.app.vault.getFolderByPath(this.settings.koiSyncFolderPath)) {
+            await this.app.vault.createFolder(this.settings.koiSyncFolderPath);
+        }
+
+
+        // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
         // const templateFile = this.app.vault.getFileByPath(
         //     this.settings.templatePath);
         // if (!templateFile) {
@@ -263,74 +185,84 @@ export default class KoiPlugin extends Plugin {
         // }
 
         // console.log("ready");
-        this.node.cache.listRids();
+        // this.node.cache.listRids();
+        await this.updateStatusBar();
         await this.fileFormatter.compileTemplates();
 
         if (!this.settings.initialized) return;
+
+
         await this.node.secure.loadPrivKey(this.config.priv_key!);
-        console.log((await this.node.secure.privKey.publicKey()).toDer());
         await this.node.lifecycle.start();
 
+        await this.indexer.indexNotes();
+
+        new Notice("KOI-net: Started polling network...");
         this.poller = this.registerInterval(
             window.setInterval(
                 async () => {
                     await this.node.poller.poll();
-                }, 
+                    // await this.updateStatusBar();
+                    // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
+                },
                 this.config.polling_interval * 1000
             )
         );
 
     }
 
-    async trackFile(file: TFile) {
-        await this.app.fileManager.processFrontMatter(
-            file,
-            async (frontmatter) => {
-                let rid: string;
-
-                if (!frontmatter.rid)
-                    frontmatter.rid = `orn:obsidian.note:${this.vaultId}/${randomUUID()}`;
-
-                frontmatter.koi_net_enabled = true;
-
-                await this.handleFile(file);
-            }
-        );
-    }
-
-    async handleFile(file: TFile) {
-        await this.app.fileManager.processFrontMatter(
-            file,
-            async (frontmatter) => {
-                if (!frontmatter.rid) 
-                    return;
-
-                console.log("frontmatter!", frontmatter);
-
-                if (!frontmatter.koi_net_enabled) {
-                    console.log("forgetting", frontmatter.rid);
-                    this.node.processor.handle({
-                        rid: frontmatter.rid,
-                        eventType: EventType.enum.FORGET
-                    });
-                } else {
-                    const data = await this.app.vault.read(file);
-                    delete frontmatter.koi_net_enabled;
-
-                    const text = data.replace(/^---[\s\S]*?---/, '');
-
-                    this.node.processor.handle({
-                        bundle: Bundle.generate({
-                            rid: frontmatter.rid, 
-                            contents: { text, frontmatter }
-                        })
-                    });
+    createSetupModal() {
+        new SetupModal(
+            this.app,
+            async (
+                { nodeName, firstContactRid, firstContactUrl }: {
+                    nodeName: string,
+                    firstContactRid: string,
+                    firstContactUrl: string
                 }
-                await this.node.processor.flushKobjQueue();
+            ) => {
+                const privKey = await PrivateKey.generate();
+                const pubKey = await privKey.publicKey();
+                const pubKeyDer = await pubKey.toDer();
+                const pubKeyHash = sha256Hash(pubKeyDer);
+
+                const nodeRid = `orn:koi-net.node:${nodeName}+${pubKeyHash}`;
+
+                this.settings.config.node_rid = nodeRid;
+                this.settings.config.priv_key = await privKey.toJwk();
+                this.settings.config.node_profile.public_key = pubKeyDer;
+                this.settings.config.first_contact.rid = firstContactRid;
+                this.settings.config.first_contact.url = firstContactUrl;
+                this.settings.initialized = true;
+                await this.saveSettings();
+
+                new Notice(`KOI-net: Node RID set to ${nodeRid}`);
+
+                await this.setup();
             }
-        );
+        ).open();
     }
+
+    async updateStatusBar() {
+        const prevIconString = this.statusBarIconString;
+
+        if (!this.settings.initialized) {
+            this.statusBarIconString = "circle-play";
+            setTooltip(this.statusBarIcon, "Click to setup your KOI-net node!");
+        } else {
+            this.statusBarIconString = "circle-check";
+            setTooltip(this.statusBarIcon, "Synced!");
+        }
+
+        if (this.statusBarIconString !== prevIconString) {
+            setIcon(this.statusBarIcon, this.statusBarIconString);
+        }
+
+        this.statusBarText.setText(`KOI-net: ${this.cache.listRids().length} 📜`);
+    }
+
     
+
     async loadSettings() {
         const loadedSettings = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);

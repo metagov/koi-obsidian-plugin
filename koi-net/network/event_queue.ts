@@ -83,7 +83,7 @@ export class NetworkEventQueue {
                 req: { events }
             })
         } catch (err) {
-            console.error(err);
+            console.log(err);
 
             if (requeueOnFail) {
                 queue.push(...events);

@@ -89,11 +89,17 @@ export class RequestHandler {
         console.log(url, req);
         // console.log(JSON.stringify(signedEnvelope));
 
-        const result = await requestUrl({
-            url, method: "POST",
-            body: JSON.stringify(signedEnvelope),
-            // throw: false
-        });
+        let result;
+        try {
+            result = await requestUrl({
+                url, method: "POST",
+                body: JSON.stringify(signedEnvelope),
+                throw: false
+            });
+        } catch(err) {
+            console.log(err);
+            return;
+        }
         
         // console.log(result);
 
@@ -126,7 +132,7 @@ export class RequestHandler {
     async pollEvents({ node, req }: {
         node: string,
         req: Omit<PollEventsReq, "type">
-    }): Promise<EventsPayload> {
+    }): Promise<EventsPayload | undefined> {
         return await this.makeRequest({
             node,
             path: POLL_EVENTS_PATH,

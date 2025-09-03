@@ -79,7 +79,8 @@ export class NetworkGraph {
         status?: EdgeStatus,
         allowedType?: string
     } = {}): Promise<Array<string>> {
-        const neighbors: Array<string> = [];
+
+        const neighbors = new Set<string>();
 
         for (const edgeRid of this.getEdges(direction)) {
             const bundle = await this.cache.read(edgeRid);
@@ -98,12 +99,12 @@ export class NetworkGraph {
             if (allowedType && !edgeProfile.rid_types.includes(allowedType)) continue;
 
             if (edgeProfile.target === this.identity.rid) {
-                neighbors.push(edgeProfile.source);
+                neighbors.add(edgeProfile.source);
             } else if (edgeProfile.source === this.identity.rid) {
-                neighbors.push(edgeProfile.target);
+                neighbors.add(edgeProfile.target);
             }
         }
 
-        return neighbors;
+        return Array.from(neighbors);
     }
 }

@@ -68,7 +68,7 @@ export class Secure {
             throw new Error("Invalid public key on new node!");
         }
 
-        console.log(nodeProfile.public_key);
+        // console.log(nodeProfile.public_key);
         const pubKey = await PublicKey.fromDer(nodeProfile.public_key);
         if (!envelope.verifyWith(pubKey)) {
             throw new Error(`Signature ${envelope.signature} is invalid.`);
