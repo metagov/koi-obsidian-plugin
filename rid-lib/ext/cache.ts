@@ -1,0 +1,105 @@
+import { TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { Bundle } from "./bundle";
+
+export class KoiCache {
+    vault: Vault;
+    directoryPath: string;
+
+    constructor({vault, directoryPath}: {
+        vault: Vault, 
+        directoryPath: string
+    }) {
+        this.vault = vault;
+        this.directoryPath = directoryPath;
+    }
+
+    getFolderObject(): TFolder | null {
+        return this.vault.getFolderByPath(
+            this.directoryPath
+        );
+    }
+
+    getFilePath(rid: string) {
+        return `${this.directoryPath}/${btoa(rid)}.json`;
+    }
+
+    getFileObject(rid: string) {
+        return this.vault.getFileByPath(
+            this.getFilePath(rid)
+        );
+    }
+
+    async write(bundle: Bundle): Promise<Bundle> {
+        if (!this.vault.getFolderByPath(this.directoryPath) || !this.getFolderObject()) {
+            console.log("attempting to create folder");
+            await this.vault.createFolder(this.directoryPath);
+        }
+
+        const file = this.getFileObject(bundle.rid);
+        const bundleString = JSON.stringify(bundle);
+
+        if (file) {
+            await this.vault.process(file, () => bundleString);
+        } else {
+            await this.vault.create(this.getFilePath(bundle.rid), bundleString);
+        }
+
+        return bundle;
+    }
+
+    exists(rid: string): boolean {
+        return this.getFileObject(rid) !== null;
+    }
+
+    async read(rid: string): Promise<Bundle | undefined> {
+        try {
+            const file = this.getFileObject(rid);
+            if (!file) return undefined;
+            const jsonString = await this.vault.read(file);
+            return Bundle.validate(JSON.parse(jsonString));
+        } catch (err) {
+            return undefined;
+        } 
+    }
+
+    listRids(ridTypes?: Array<string>): Array<string> {
+        const folder = this.getFolderObject();
+        if (!folder) return [];
+
+        const rids: Array<string> = [];
+
+        const files: Array<TFile> = [];
+        Vault.recurseChildren(
+            folder, 
+            (file: TAbstractFile) => {
+                if (file instanceof TFile) files.push(file);
+            }
+        )
+
+        for (const file of files) {
+            const rid = atob(file.basename);
+            if (Array.isArray(ridTypes)) {
+                for (const ridType of ridTypes) {
+                    if (rid.startsWith(ridType)) {
+                        rids.push(rid);
+                        continue;
+                    }
+                }
+            } else {
+                rids.push(rid);
+            }
+        }
+            
+        return rids
+    }
+
+    async delete(rid: string) {
+        const file = this.getFileObject(rid);
+        if (file) await this.vault.delete(file);
+    }
+
+    async drop() {
+        const folder = this.getFolderObject();
+        if (folder) await this.vault.delete(folder, true);
+    }
+}
