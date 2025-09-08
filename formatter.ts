@@ -10,6 +10,7 @@ import { ObsidianNote } from "models";
 import { OBSIDIAN_NOTE_TYPE, RID_FIELD, SHA256_HASH_FIELD, SLACK_USER_TYPE, TELESCOPED_TYPE, TIMESTAMP_FIELD } from "consts";
 import { TelescopeContentsSchema } from "telescope-types";
 import { toFilenameSafeDateWithMs } from "utils";
+import { DEFAULT_TABLE } from "default-templates";
 
 
 export class TelescopeFormatter {

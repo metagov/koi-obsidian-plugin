@@ -1,4 +1,4 @@
-const DEFAULT_KOI_NET_NODE_TEMPLATE = `\`\`\`
+export const DEFAULT_KOI_NET_NODE_TEMPLATE = `\`\`\`
 ---
 base_url: {{base_url}}
 node_type: {{node_type}}
@@ -8,7 +8,7 @@ public_key: {{public_key}}
 ---
 \`\`\``;
 
-const DEFAULT_KOI_NET_EDGE_TEMPLATE = `\`\`\`
+export const DEFAULT_KOI_NET_EDGE_TEMPLATE = `\`\`\`
 ---
 {{{yaml this}}}
 ---
@@ -17,7 +17,7 @@ target_link: "[[{{{linkTo target false}}}]]"
 \`\`\`
 `;
 
-const DEFAULT_OBSIDIAN_NOTE_TEMPLATE = `\`\`\`
+export const DEFAULT_OBSIDIAN_NOTE_TEMPLATE = `\`\`\`
 ---
 {{{yaml frontmatter}}}
 path: {{path}}
@@ -25,7 +25,7 @@ path: {{path}}
 \`\`\`
 {{{text}}}`;
 
-const DEFAULT_TELESCOPED_TEMPLATE = `\`\`\`
+export const DEFAULT_TELESCOPED_TEMPLATE = `\`\`\`
 ---
 {{{yaml this}}}
 ---
@@ -34,7 +34,7 @@ const DEFAULT_TELESCOPED_TEMPLATE = `\`\`\`
 ## Notes:
 researcher_comments: {{comments}}`;
 
-const DEFAULT_TABLE = {
+export const DEFAULT_TABLE = {
     'koi-net.node': DEFAULT_KOI_NET_NODE_TEMPLATE,
     'koi-net.edge': DEFAULT_KOI_NET_EDGE_TEMPLATE,
     'obsidian.note': DEFAULT_OBSIDIAN_NOTE_TEMPLATE,
