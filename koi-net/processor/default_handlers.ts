@@ -7,6 +7,7 @@ import { sha256Hash } from "rid-lib/ext/utils";
 import { EdgeProfileSchema, EdgeStatus, EdgeType, generateEdgeBundle } from "koi-net/protocol/edge";
 import { Bundle } from "rid-lib/ext/bundle";
 import { parseRidString } from "rid-lib/utils";
+import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE } from "consts";
 
 
 export const basicRidHandler = new KnowledgeHandler({
@@ -57,7 +58,7 @@ export const basicManifestHandler = new KnowledgeHandler({
 export const secureProfileHandler = new KnowledgeHandler({
     name: "secure_profile_handler",
     handlerType: HandlerType.Bundle,
-    ridTypes: ["orn:koi-net.node"],
+    ridTypes: [KOI_NET_NODE_TYPE],
     eventTypes: [EventType.enum.NEW, EventType.enum.UPDATE],
     func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
         const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
@@ -71,7 +72,7 @@ export const secureProfileHandler = new KnowledgeHandler({
 export const edgeNegotiationHandler = new KnowledgeHandler({
     name: "edge_negotiation_handler",
     handlerType: HandlerType.Bundle,
-    ridTypes: ["orn:koi-net.edge"],
+    ridTypes: [KOI_NET_EDGE_TYPE],
     eventTypes: [EventType.enum.NEW, EventType.enum.UPDATE],
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         if (!kobj.source) return;
@@ -91,8 +92,8 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
             const peerProfile = peerBundle.validateContents(NodeProfileSchema);
 
             const providedEvents = [
-                "orn:koi-net.node",
-                "orn:koi-net.edge",
+                KOI_NET_NODE_TYPE,
+                KOI_NET_EDGE_TYPE,
                 ...ctx.identity.profile.provides.event, 
             ];
 
@@ -142,11 +143,11 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
 export const coordinatorContact = new KnowledgeHandler({
     name: "coordinator_contact",
     handlerType: HandlerType.Network,
-    ridTypes: ["orn:koi-net.node"],
+    ridTypes: [KOI_NET_NODE_TYPE],
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
 
-        if (!nodeProfile.provides.event?.contains("orn:koi-net.node"))
+        if (!nodeProfile.provides.event?.contains(KOI_NET_NODE_TYPE))
             return;
 
         if (kobj.rid === ctx.identity.rid)
@@ -165,13 +166,13 @@ export const coordinatorContact = new KnowledgeHandler({
                 source: kobj.rid,
                 target: ctx.identity.rid,
                 edgeType: "POLL",
-                ridTypes: ["orn:koi-net.node"]
+                ridTypes: [KOI_NET_NODE_TYPE]
             })
         })
 
         const payload = await ctx.requestHandler.fetchRids({
             node: kobj.rid,
-            req: {rid_types: ["orn:koi-net.node"]}
+            req: {rid_types: [KOI_NET_NODE_TYPE]}
         });
         for (const rid of payload.rids) {
             ctx.processor.handle({rid, source: kobj.rid});
@@ -185,11 +186,11 @@ export const basicNetworkOutputFilter = new KnowledgeHandler({
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         let involvesMe: boolean = false;
         if (!kobj.source) {
-            if (kobj.rid.startsWith("orn:koi-net.node")) {
+            if (kobj.rid.startsWith(KOI_NET_NODE_TYPE)) {
                 if (kobj.rid === ctx.identity.rid) {
                     involvesMe = true;
                 }
-            } else if (kobj.rid.startsWith("orn:koi-net.edge")) {
+            } else if (kobj.rid.startsWith(KOI_NET_EDGE_TYPE)) {
                 const edgeProfile = kobj.bundle!.validateContents(EdgeProfileSchema);
                 if (edgeProfile.source === ctx.identity.rid) {
                     kobj.networkTargets.push(edgeProfile.target);
@@ -218,7 +219,7 @@ export const basicNetworkOutputFilter = new KnowledgeHandler({
 export const forgetEdgeOnNodeDeletion = new KnowledgeHandler({
     name: "forget_edge_on_node_deletion",
     handlerType: HandlerType.Final,
-    ridTypes: ["orn:koi-net.node"],
+    ridTypes: [KOI_NET_NODE_TYPE],
     func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
         if (kobj.normalizedEventType !== EventType.enum.FORGET) return;
 

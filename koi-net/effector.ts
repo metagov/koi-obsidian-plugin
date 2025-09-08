@@ -3,6 +3,7 @@ import { ProcessorInterface } from "./processor/interface";
 import { Bundle } from "rid-lib/ext/bundle";
 import { ActionContext } from "./context";
 import { NetworkResolver } from "./network/resolver";
+import { KOI_NET_NODE_TYPE } from "consts";
 
 
 export type EffectorAction = (ctx: ActionContext, rid: string) => Bundle | undefined;
@@ -98,7 +99,7 @@ export class Effector {
         if (handleResult && bundle && source !== "cache") {
             this.processor.handle({
                 bundle,
-                source: source.startsWith("orn:koi-net.node") ? source : undefined
+                source: source.startsWith(KOI_NET_NODE_TYPE) ? source : undefined
             });
         }
 

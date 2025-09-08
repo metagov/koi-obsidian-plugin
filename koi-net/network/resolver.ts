@@ -8,6 +8,7 @@ import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { EdgeType } from "koi-net/protocol/edge";
 import { KoiNetConfigSchema } from "koi-net/config";
 import { Effector } from "koi-net/effector";
+import { KOI_NET_NODE_TYPE } from "consts";
 
 
 export class NetworkResolver {
@@ -37,7 +38,7 @@ export class NetworkResolver {
     async pollNeighbors(): Promise<Record<string, Array<KoiEvent>>> {
         const neighbors = new Set<string>();
 
-        for (const nodeRid of this.cache.listRids(["orn:koi-net.node"])) {
+        for (const nodeRid of this.cache.listRids([KOI_NET_NODE_TYPE])) {
             const nodeBundle = await this.cache.read(nodeRid);
             if (!nodeBundle) continue;
             const nodeProfile = nodeBundle.validateContents(NodeProfileSchema);

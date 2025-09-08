@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type KoiPlugin from "main";
 import { KoiNetConfigSchema } from 'koi-net/config';
+import { OBSIDIAN_NOTE_TYPE } from 'consts';
 
 export interface KoiPluginSettings {
     config: KoiNetConfigSchema;
@@ -18,7 +19,7 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         node_profile: {
             node_type: "PARTIAL",
             provides: {
-                event: ["orn:obsidian.note"],
+                event: [OBSIDIAN_NOTE_TYPE],
                 state: []
             },
             public_key: ""
@@ -34,7 +35,7 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
 	koiSyncFolderPath: "koi",
 	templatePath: "koi-templates",
     interestedRidTypes: [
-        "orn:obsidian.note"
+        OBSIDIAN_NOTE_TYPE
     ],
     vaultId: undefined,
     initialized: false
@@ -88,7 +89,7 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('Interested RID types')
             .setDesc('The RID types this node should subscribe to events for (enter one RID type per line)')
             .addTextArea(text => text
-                .setPlaceholder('orn:obsidian.note|orn:telescoped')
+                .setPlaceholder('orn:obsidian.note\norn:telescoped')
                 .setValue(this.plugin.settings.interestedRidTypes.join('\n'))
                 .onChange(async (value) => {
                     this.plugin.settings.interestedRidTypes = value.split('\n');

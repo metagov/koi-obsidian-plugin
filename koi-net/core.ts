@@ -15,6 +15,7 @@ import { Actor } from "./actor";
 import { NodeLifecycle } from "./lifecycle";
 import { dereferenceKoiNode } from "./default_actions";
 import { NodePoller } from "./poller";
+import { KOI_NET_NODE_TYPE } from "consts";
 
 
 export class NodeInterface {
@@ -74,7 +75,7 @@ export class NodeInterface {
         this.pipeline.addHandler(forgetEdgeOnNodeDeletion);
 
         this.effector.registerAction({
-            ridType: "orn:koi-net.node",
+            ridType: KOI_NET_NODE_TYPE,
             action: dereferenceKoiNode
         });
     }

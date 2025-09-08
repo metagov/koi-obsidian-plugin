@@ -8,6 +8,7 @@ import { HandlerContext } from "koi-net/context";
 import { RequestHandler } from "koi-net/network/request_handlers";
 import { NetworkEventQueue } from "koi-net/network/event_queue";
 import { NetworkGraph } from "koi-net/network/graph";
+import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE } from "consts";
 
 
 export class KnowledgePipeline {
@@ -153,8 +154,8 @@ export class KnowledgePipeline {
             return;
         }
 
-        if (kobj.rid.startsWith("orn:koi-net.node") || 
-            kobj.rid.startsWith("orn:koi-net.edge")) {
+        if (kobj.rid.startsWith(KOI_NET_NODE_TYPE) || 
+            kobj.rid.startsWith(KOI_NET_EDGE_TYPE)) {
             await this.graph.generate();
         }
 

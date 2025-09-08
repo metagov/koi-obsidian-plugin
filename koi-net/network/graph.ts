@@ -1,3 +1,4 @@
+import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE } from "consts";
 import { DirectedGraph } from "graphology";
 import { NodeIdentity } from "koi-net/identity";
 import { EdgeProfileSchema, EdgeStatus } from "koi-net/protocol/edge";
@@ -22,12 +23,12 @@ export class NetworkGraph {
         console.log('Generating network graph');
         this.dg.clear();
 
-        for (const rid of this.cache.listRids(["orn:koi-net.node"])) {
+        for (const rid of this.cache.listRids([KOI_NET_NODE_TYPE])) {
             this.dg.addNode(rid);
             console.log(`Added node ${rid}`);
         }
 
-        for (const rid of this.cache.listRids(["orn:koi-net.edge"])) {
+        for (const rid of this.cache.listRids([KOI_NET_EDGE_TYPE])) {
             const bundle = await this.cache.read(rid);
             if (!bundle) {
                 console.error(`Failed to load ${rid}`)

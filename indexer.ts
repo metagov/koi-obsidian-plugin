@@ -1,8 +1,10 @@
+import { KOI_NET_ENABLED_FIELD, OBSIDIAN_NOTE_TYPE, RID_FIELD } from "consts";
 import { randomUUID } from "crypto";
 import { NodeInterface } from "koi-net/core";
 import { EventType } from "koi-net/protocol/event";
 import KoiPlugin from "main";
-import { App, TFile } from "obsidian";
+import { ObsidianNote } from "models";
+import { App, Notice, TFile } from "obsidian";
 import { Bundle } from "rid-lib/ext/bundle";
 import { KoiPluginSettings } from "settings";
 
@@ -22,21 +24,19 @@ export class Indexer {
     async indexNotes() {
         console.log("indexing notes...");
         for (const file of this.app.vault.getMarkdownFiles()) {
-            await this.app.fileManager.processFrontMatter(
-                file,
-                async (frontmatter) => {
-                    if (!frontmatter?.rid || !frontmatter?.koi_net_enabled)
-                        return;
-
-                    this.fileIndex[file.path] = frontmatter.rid;
-                    console.log(file.path, "->", frontmatter.rid);
-
-                    // const metadata = this.app.metadataCache.getFileCache(file);
-                    // console.log(metadata?.links);
-
-                    await this.handleFile(file);
-                }
+            const metadata = this.app.metadataCache.getFileCache(file);
+            const frontmatter = metadata?.frontmatter;
+            
+            if (
+                !frontmatter?.hasOwnProperty(RID_FIELD) || 
+                !frontmatter?.hasOwnProperty(KOI_NET_ENABLED_FIELD)
             )
+                continue;
+
+            this.fileIndex[file.path] = frontmatter[RID_FIELD];
+            console.log(file.path, "->", frontmatter[RID_FIELD]);
+            
+            await this.handleFile(file);
         }
         console.log(this.fileIndex);
     }
@@ -59,12 +59,15 @@ export class Indexer {
         
         console.log(`modifying note ${file.path}`);
 
+        // new Notice("KOI-net: note modified");
+
         await this.handleFile(file);
     }
 
     async renameNote(file: TFile, oldPath: string) {
         if (!(oldPath in this.fileIndex)) return;
         console.log(`renaming note ${oldPath} -> ${file.path}`);
+        new Notice("KOI-net: note renamed");
 
         const rid = this.fileIndex[oldPath];
         delete this.fileIndex[oldPath];
@@ -75,6 +78,7 @@ export class Indexer {
     async deleteNote(file: TFile) {
         if (!(file.path in this.fileIndex)) return;
         console.log("deleting note", file.path);
+        new Notice("KOI-net: note deleted");
 
         this.node.processor.handle({
             rid: this.fileIndex[file.path],
@@ -84,57 +88,66 @@ export class Indexer {
     }
 
     async trackFile(file: TFile) {
+        // new Notice("KOI-net: note tracked");
         await this.app.fileManager.processFrontMatter(
             file,
             async (frontmatter) => {
-                if (!frontmatter.rid)
-                    frontmatter.rid = `orn:obsidian.note:${this.settings.vaultId}/${randomUUID()}`;
+                if (!frontmatter[RID_FIELD])
+                    frontmatter[RID_FIELD] = `${OBSIDIAN_NOTE_TYPE}:${this.settings.vaultId}/${randomUUID()}`;
 
-                frontmatter.koi_net_enabled = true;
+                frontmatter[KOI_NET_ENABLED_FIELD] = true;
 
-                this.fileIndex[file.path] = frontmatter.rid;
-
-                await this.handleFile(file);
+                this.fileIndex[file.path] = frontmatter[RID_FIELD];
             }
         );
+        await this.handleFile(file);
     }
 
     async handleFile(file: TFile) {
-        await this.app.fileManager.processFrontMatter(
+       await this.app.fileManager.processFrontMatter(
             file,
             async (frontmatter) => {
-                // console.log("frontmatter!", frontmatter);
-
-                if (frontmatter.koi_net_enabled === false) {
-                    console.log("forgetting", frontmatter.rid);
+                if (!frontmatter) {
+                    console.log("didn't find frontmatter");
+                    return;
+                } 
+                
+                if (frontmatter[KOI_NET_ENABLED_FIELD] === false) {
+                    console.log("forgetting", frontmatter[RID_FIELD]);
+                    new Notice("KOI-net: note untracked");
                     this.node.processor.handle({
-                        rid: frontmatter.rid,
+                        rid: frontmatter[RID_FIELD],
                         eventType: EventType.enum.FORGET
                     });
                 } else {
                     const data = await this.app.vault.read(file);
-                    delete frontmatter.koi_net_enabled;
+                    delete frontmatter[KOI_NET_ENABLED_FIELD];
+
+                    if (!this.node.cache.exists(frontmatter[RID_FIELD]))
+                    //     new Notice("KOI-net: note modified");
+                    // else
+                        new Notice("KOI-net: note tracked");
 
                     const text = data.replace(/^---[\s\S]*?---\n?/, '');
 
                     // console.log(data);
                     // console.log(text);
 
-                    const contents = {
+                    const contents = ObsidianNote.parse({
                         text,
                         frontmatter,
                         basename: file.basename,
                         path: file.path
-                    }
+                    });
 
                     this.node.processor.handle({
                         bundle: Bundle.generate({
-                            rid: frontmatter.rid, contents
+                            rid: frontmatter[RID_FIELD], contents
                         })
                     });
                 }
                 await this.node.processor.flushKobjQueue();
             }
-        );
+        )
     }
 }

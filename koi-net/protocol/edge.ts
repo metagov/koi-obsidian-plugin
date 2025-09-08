@@ -1,3 +1,4 @@
+import { KOI_NET_EDGE_TYPE } from "consts";
 import { Bundle } from "rid-lib/ext/bundle";
 import { sha256Hash } from "rid-lib/ext/utils";
 import { z } from "zod";
@@ -24,7 +25,7 @@ export function generateEdgeBundle({source, target, ridTypes, edgeType}: {
     ridTypes: Array<string>,
     edgeType: EdgeType
 }): Bundle {
-    const edgeRid = `orn:koi-net.edge:${sha256Hash(source + target)}`;
+    const edgeRid = `${KOI_NET_EDGE_TYPE}:${sha256Hash(source + target)}`;
     const edgeProfile: EdgeProfileSchema = {
         source, target, 
         rid_types: ridTypes, 

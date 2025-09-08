@@ -8,13 +8,14 @@ import { parseRidString } from "rid-lib/utils";
 
 import KoiPlugin from "main";
 import { EventType, KoiEvent } from "koi-net/protocol/event";
+import { KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from "consts";
 
 export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
     node.pipeline.handlers.push(...[
         new KnowledgeHandler({
             name: "obsidian_event_mirroring_blocker",
             handlerType: HandlerType.RID,
-            ridTypes: ["orn:obsidian.note"],
+            ridTypes: [OBSIDIAN_NOTE_TYPE],
             func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
                 const { reference } = parseRidString(kobj.rid);
 
@@ -38,9 +39,9 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
             }
         }),
         new KnowledgeHandler({
-            name: "telescope_contacter",
+            name: "interested_contactor",
             handlerType: HandlerType.Network,
-            ridTypes: ["orn:koi-net.node"],
+            ridTypes: [KOI_NET_NODE_TYPE],
             func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
                 if (kobj.rid === ctx.identity.rid) return;
 
@@ -75,7 +76,7 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
 
                 // send existing obsidian notes if the 
                 console.log(`identied obsidian manger, sending existing notes`);
-                if (availableRidTypes.contains('orn:obsidian.note')) {
+                if (availableRidTypes.contains(OBSIDIAN_NOTE_TYPE)) {
                     for (const rid of plugin.indexer.listRids()) {
                         const bundle = await node.effector.deref({ rid });
                         if (!bundle) continue;
@@ -88,6 +89,17 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                         })
                     }
                     await ctx.eventQueue.flushWebhookQueue(kobj.rid);
+                }
+            }
+        }),
+        new KnowledgeHandler({
+            name: "obsidian_note_network_decider",
+            handlerType: HandlerType.Network,
+            ridTypes: [OBSIDIAN_NOTE_TYPE],
+            func: (ctx: HandlerContext, kobj: KnowledgeObject) => {
+                if (kobj.source) {
+                    console.log("blocking broadcasting of externally sourced obsidian note");
+                    return STOP_CHAIN;
                 }
             }
         })

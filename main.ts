@@ -1,4 +1,4 @@
-import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo, MetadataCache } from 'obsidian';
+import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo, MetadataCache, Menu, MenuItem } from 'obsidian';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
@@ -15,6 +15,7 @@ import { Bundle } from 'rid-lib/ext/bundle';
 import { configureNode } from 'node-configuration';
 import { SetupModal } from 'setup-modal';
 import { Indexer } from 'indexer';
+import { KOI_NET_NODE_TYPE } from 'consts';
 
 
 
@@ -161,6 +162,20 @@ export default class KoiPlugin extends Plugin {
             })
         )
 
+        this.app.workspace.on("url-menu", (
+            menu: Menu, url: string) => {
+                menu.addItem((item: MenuItem) => {
+                    item.setTitle('Open with KOI')
+                        .setIcon('scroll')
+                        .onClick(async () => {
+                            const file = this.fileFormatter.getFileByRid(url);
+                            if (!file) return;
+                            this.app.workspace.getLeaf().openFile(file);
+                        })
+                })
+            }
+        );
+
         this.app.workspace.onLayoutReady(() => {
             console.log("calling setup");
             this.setup();
@@ -168,11 +183,6 @@ export default class KoiPlugin extends Plugin {
     }
 
     async setup() {
-        if (!this.app.vault.getFolderByPath(this.settings.koiSyncFolderPath)) {
-            await this.app.vault.createFolder(this.settings.koiSyncFolderPath);
-        }
-
-
         // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
 
         // console.log("ready");
@@ -217,7 +227,7 @@ export default class KoiPlugin extends Plugin {
                 const pubKeyDer = await pubKey.toDer();
                 const pubKeyHash = sha256Hash(pubKeyDer);
 
-                const nodeRid = `orn:koi-net.node:${nodeName}+${pubKeyHash}`;
+                const nodeRid = `${KOI_NET_NODE_TYPE}:${nodeName}+${pubKeyHash}`;
 
                 this.settings.config.node_rid = nodeRid;
                 this.settings.config.priv_key = await privKey.toJwk();
