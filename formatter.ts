@@ -243,5 +243,4 @@ export class TelescopeFormatter {
         const file = await this.getFileByRid(rid);
         if (file) await this.app.vault.delete(file);
     }
-
 }
