@@ -36,7 +36,7 @@ export class Indexer {
             this.fileIndex[file.path] = frontmatter[RID_FIELD];
             console.log(file.path, "->", frontmatter[RID_FIELD]);
             
-            await this.handleFile(file);
+            await this.handleFile(file, false);
         }
         console.log(this.fileIndex);
     }
@@ -103,7 +103,7 @@ export class Indexer {
         await this.handleFile(file);
     }
 
-    async handleFile(file: TFile) {
+    async handleFile(file: TFile, emit_notice: boolean = true) {
        await this.app.fileManager.processFrontMatter(
             file,
             async (frontmatter) => {
@@ -114,7 +114,8 @@ export class Indexer {
                 
                 if (frontmatter[KOI_NET_ENABLED_FIELD] === false) {
                     console.log("forgetting", frontmatter[RID_FIELD]);
-                    new Notice("KOI-net: note untracked");
+                    if (emit_notice) 
+                        new Notice(`KOI-net: Stopped tracking "${file.basename}"`);
                     this.node.processor.handle({
                         rid: frontmatter[RID_FIELD],
                         eventType: EventType.enum.FORGET
@@ -126,7 +127,8 @@ export class Indexer {
                     if (!this.node.cache.exists(frontmatter[RID_FIELD]))
                     //     new Notice("KOI-net: note modified");
                     // else
-                        new Notice("KOI-net: note tracked");
+                        if (emit_notice)
+                            new Notice(`KOI-net: Started tracking "${file.basename}"`);
 
                     const text = data.replace(/^---[\s\S]*?---\n?/, '');
 

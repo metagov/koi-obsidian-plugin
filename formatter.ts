@@ -40,7 +40,6 @@ export class TelescopeFormatter {
             }
         });
         Handlebars.registerHelper("parseUsers", function (path: string, text: string) {
-            console.log(this);
             return text.replace(
                 /<@([A-Z0-9]+)>/g,
                 (match, userId) => path.replace(/\$userId/g, userId).replace(/\$userName/g, this.userNameLookup[userId] || userId)
@@ -241,7 +240,12 @@ export class TelescopeFormatter {
     }
 
     async delete(rid: string) {
-        const file = await this.getFileByRid(rid);
+        const file = this.getFileByRid(rid);
         if (file) await this.app.vault.delete(file);
+    }
+
+    async drop() {
+        const folder = this.app.vault.getFolderByPath(this.settings.koiSyncFolderPath);
+        if (folder) await this.app.vault.delete(folder, true);
     }
 }

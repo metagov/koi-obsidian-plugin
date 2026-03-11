@@ -36,7 +36,13 @@ export class NetworkGraph {
             }
             const edgeProfile = EdgeProfileSchema.parse(bundle.contents);
             
+            if (!(this.dg.hasNode(edgeProfile.source) && this.dg.hasNode(edgeProfile.target))) {
+                console.log("invalid edge");
+                continue;
+            }
+
             this.dg.addEdge(edgeProfile.source, edgeProfile.target, { rid });
+            
             console.log(`Added edge ${rid} (${edgeProfile.source} -> ${edgeProfile.target})`);
         }
 
@@ -58,6 +64,9 @@ export class NetworkGraph {
         direction?: 'in' | 'out'
     ): Array<string> {
         const edges: Array<string> = [];
+
+        if (!this.dg.hasNode(this.identity.rid))
+            return [];
 
         if (direction !== 'in')
             edges.push(...this.dg.outEdges(this.identity.rid));

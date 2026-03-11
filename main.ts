@@ -65,7 +65,7 @@ export default class KoiPlugin extends Plugin {
 
         configureNode(this.node, this);
 
-        console.log("i am", this.node.identity.rid);
+        console.log("I am", this.node.identity.rid);
 
         this.syncMutex = new Mutex();
         this.connected = true;
@@ -96,6 +96,31 @@ export default class KoiPlugin extends Plugin {
             }
         });
 
+        this.addCommand({
+            id: 'reset',
+            name: 'Reset this plugin',
+            callback: async () => {
+                
+                console.log("forgetting myself...")
+                this.node.processor.handle({
+                    rid: this.node.identity.rid,
+                    eventType: EventType.enum.FORGET
+                })
+                await this.node.processor.flushKobjQueue();
+                console.log("done");
+                
+                await this.cache.drop();
+                await this.fileFormatter.drop();
+                await this.updateStatusBar();
+
+                this.settings = DEFAULT_SETTINGS;
+                await this.saveSettings();
+
+                const pluginId = this.manifest.id;
+                await this.app.plugins.disablePlugin(pluginId);
+                await this.app.plugins.enablePlugin(pluginId);
+            }
+        })
 
         this.addCommand({
             id: 'set-node-rid',
@@ -136,7 +161,7 @@ export default class KoiPlugin extends Plugin {
         this.registerEvent(
             this.app.vault.on('modify', async (file: TFile) => {
                 if (file.path.startsWith(this.settings.templatePath)) {
-                    console.log("detect change in templates, recompiling...");
+                    console.log("Detected change in templates, recompiling...");
                     await this.fileFormatter.compileTemplates();
                     return;
                 }
@@ -216,10 +241,11 @@ export default class KoiPlugin extends Plugin {
         new SetupModal(
             this.app,
             async (
-                { nodeName, firstContactRid, firstContactUrl }: {
+                { nodeName, firstContactRid, firstContactUrl, interestedRidTypes }: {
                     nodeName: string,
                     firstContactRid: string,
-                    firstContactUrl: string
+                    firstContactUrl: string,
+                    interestedRidTypes: Array<string>
                 }
             ) => {
                 const privKey = await PrivateKey.generate();
@@ -227,13 +253,14 @@ export default class KoiPlugin extends Plugin {
                 const pubKeyDer = await pubKey.toDer();
                 const pubKeyHash = sha256Hash(pubKeyDer);
 
-                const nodeRid = `${KOI_NET_NODE_TYPE}:${nodeName}+${pubKeyHash}`;
+                const nodeRid = `${KOI_NET_NODE_TYPE}:${nodeName.trim()}+${pubKeyHash}`;
 
                 this.settings.config.node_rid = nodeRid;
                 this.settings.config.priv_key = await privKey.toJwk();
                 this.settings.config.node_profile.public_key = pubKeyDer;
-                this.settings.config.first_contact.rid = firstContactRid;
-                this.settings.config.first_contact.url = firstContactUrl;
+                this.settings.config.first_contact.rid = firstContactRid.trim();
+                this.settings.config.first_contact.url = firstContactUrl.trim();
+                this.settings.interestedRidTypes = interestedRidTypes;
                 this.settings.initialized = true;
                 await this.saveSettings();
 

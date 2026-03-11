@@ -154,9 +154,18 @@ export class KnowledgePipeline {
             return;
         }
 
-        if (kobj.rid.startsWith(KOI_NET_NODE_TYPE) || 
-            kobj.rid.startsWith(KOI_NET_EDGE_TYPE)) {
-            await this.graph.generate();
+        if (
+            (kobj.rid.startsWith(KOI_NET_NODE_TYPE) || 
+            kobj.rid.startsWith(KOI_NET_EDGE_TYPE))) {
+
+            if (
+                kobj.rid === this.identity.rid &&
+                kobj.eventType === EventType.enum.FORGET
+            ) {
+                console.log("suppressing graph regeneration for self destruct event");
+            } else {
+                await this.graph.generate();
+            }
         }
 
         kobj = await this.callHandlerChain(HandlerType.Network, kobj);

@@ -41,8 +41,8 @@ export class Secure {
 
     async createEnvelope({ payload, target }: {
         payload: any, 
-        target: string}
-    ): Promise<SignedEnvelope> {
+        target: string
+    }): Promise<SignedEnvelope> {
         const unsignedEnvelope = new UnsignedEnvelope({
             payload,
             source_node: this.identity.rid,

@@ -1,3 +1,4 @@
+import { OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE } from "consts";
 import { App, Modal, Setting } from "obsidian";
 
 
@@ -5,10 +6,11 @@ export class SetupModal extends Modal {
     constructor(
         app: App, 
         onSubmit: (
-            { nodeName, firstContactRid, firstContactUrl }: {
+            { nodeName, firstContactRid, firstContactUrl, interestedRidTypes }: {
                 nodeName: string,
                 firstContactRid: string,
-                firstContactUrl: string
+                firstContactUrl: string,
+                interestedRidTypes: Array<string>
             }
         ) => void
     ) {
@@ -17,27 +19,42 @@ export class SetupModal extends Modal {
         let nodeName = "";
         let firstContactRid = "";
         let firstContactUrl = "";
+        let interestedRidTypes = Array<string>(
+            OBSIDIAN_NOTE_TYPE, 
+            TELESCOPED_TYPE
+        );
 
         new Setting(this.contentEl)
             .setName('Node name:')
-            .addText((text) =>
+            .setDesc("Use only alphanumeric characters, hyphen, or underscore")
+            .addText(text =>
                 text.onChange((value) => {
-                    nodeName = value;
+                    nodeName = value.trim();
                 }));
 
         new Setting(this.contentEl)
             .setName('First contact RID:')
-            .addText((text) =>
+            .addText(text =>
                 text.onChange((value) => {
-                    firstContactRid = value;
+                    firstContactRid = value.trim();
                 }));
 
         new Setting(this.contentEl)
             .setName('First contact URL:')
-            .addText((text) =>
+            .addText(text =>
                 text.onChange((value) => {
-                    firstContactUrl = value;
+                    firstContactUrl = value.trim();
                 }));
+
+        new Setting(this.contentEl)
+            .setName('RID types of interest')
+            .setDesc('Enter one RID type per line')
+            .addTextArea(text => text
+                .setValue(`${OBSIDIAN_NOTE_TYPE}\n${TELESCOPED_TYPE}`)
+                .onChange((value) => {
+                    interestedRidTypes = value.split('\n');
+                })
+            )
 
         new Setting(this.contentEl)
             .addButton((btn) =>
@@ -48,7 +65,8 @@ export class SetupModal extends Modal {
                         onSubmit({
                             nodeName, 
                             firstContactRid, 
-                            firstContactUrl
+                            firstContactUrl,
+                            interestedRidTypes
                         });
                     }));
     }

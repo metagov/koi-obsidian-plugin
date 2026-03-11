@@ -94,6 +94,7 @@ export class RequestHandler {
             result = await requestUrl({
                 url, method: "POST",
                 body: JSON.stringify(signedEnvelope),
+                contentType: "application/json",
                 throw: false
             });
         } catch(err) {

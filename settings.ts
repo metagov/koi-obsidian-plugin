@@ -86,7 +86,7 @@ export class KoiSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Interested RID types')
+            .setName('RID types of interest')
             .setDesc('The RID types this node should subscribe to events for (enter one RID type per line)')
             .addTextArea(text => text
                 .setPlaceholder('orn:obsidian.note\norn:telescoped')
