@@ -117,8 +117,8 @@ export default class KoiPlugin extends Plugin {
                 await this.saveSettings();
 
                 const pluginId = this.manifest.id;
-                await this.app.plugins.disablePlugin(pluginId);
-                await this.app.plugins.enablePlugin(pluginId);
+                await (this.app as any).plugins.disablePlugin(pluginId);
+                await (this.app as any).plugins.enablePlugin(pluginId);
             }
         })
 
