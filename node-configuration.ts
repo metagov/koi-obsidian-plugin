@@ -2,13 +2,13 @@ import { NodeInterface } from "koi-net/core";
 import { HandlerContext } from "koi-net/context";
 import { HandlerType, KnowledgeHandler } from "koi-net/processor/handler";
 import { KnowledgeObject, STOP_CHAIN } from "koi-net/processor/knowledge_object";
-import { generateEdgeBundle } from "koi-net/protocol/edge";
+import { EdgeProfileSchema, EdgeStatus, generateEdgeBundle } from "koi-net/protocol/edge";
 import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { parseRidString } from "rid-lib/utils";
 
 import KoiPlugin from "main";
 import { EventType, KoiEvent } from "koi-net/protocol/event";
-import { KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from "consts";
+import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from "consts";
 
 export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
     node.pipeline.handlers.push(...[
@@ -53,7 +53,7 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                 if (!availableRidTypes || availableRidTypes.length === 0) return;
                 if (nodeProfile.node_type !== NodeType.enum.FULL) return;
 
-                console.log(`identified ${kobj.rid} as provider of ${availableRidTypes}`);
+                console.log(`identified ${kobj.rid} as provider of ${availableRidTypes}, proposing an edge`);
 
                 ctx.processor.handle({
                     bundle: generateEdgeBundle({
@@ -63,33 +63,51 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                         ridTypes: availableRidTypes
                     })
                 });
-
-                const payload = await ctx.requestHandler.fetchRids({
-                    node: kobj.rid,
-                    req: { rid_types: availableRidTypes }
-                });
                 
-                console.log(`retrieved ${payload.rids.length} rids`)
+            }
+        }),
+        new KnowledgeHandler({
+            name: "edge_approval_handler",
+            handlerType: HandlerType.Bundle,
+            ridTypes: [KOI_NET_EDGE_TYPE],
+            eventTypes: [EventType.enum.NEW, EventType.enum.UPDATE],
+            func: async (ctx: HandlerContext, kobj: KnowledgeObject) => {
+                if (!kobj.source) return;
+                const edgeProfile = kobj.bundle!.validateContents(EdgeProfileSchema);
 
-                payload.rids.forEach(
-                    rid => {ctx.processor.handle({rid, source: kobj.rid})});
+                console.log(`Handling ${JSON.stringify(edgeProfile)}`);
 
-                // send existing obsidian notes if the 
-                console.log(`identied obsidian manger, sending existing notes`);
-                if (availableRidTypes.contains(OBSIDIAN_NOTE_TYPE)) {
-                    for (const rid of plugin.indexer.listRids()) {
-                        const bundle = await node.effector.deref({ rid });
-                        if (!bundle) continue;
+                if (edgeProfile.target === ctx.identity.rid && 
+                    edgeProfile.status === EdgeStatus.enum.APPROVED) {
+                        
 
-                        console.log(`sending ${rid}`);
+                        const payload = await ctx.requestHandler.fetchRids({
+                            node: kobj.source,
+                            req: { rid_types: edgeProfile.rid_types }
+                        });
+                        
+                        console.log(`Retrieved ${payload.rids.length} RIDs from source node`)
 
-                        ctx.eventQueue.pushEventTo({
-                            event: KoiEvent.fromBundle(EventType.enum.NEW, bundle),
-                            node: kobj.rid
-                        })
+                        payload.rids.forEach(
+                            rid => {ctx.processor.handle({rid, source: kobj.source})});
+
+                        // send existing obsidian notes if the 
+                        console.log(`Identied obsidian manger, sending existing notes`);
+                        if (edgeProfile.rid_types.contains(OBSIDIAN_NOTE_TYPE)) {
+                            for (const rid of plugin.indexer.listRids()) {
+                                const bundle = await node.effector.deref({ rid });
+                                if (!bundle) continue;
+
+                                console.log(`sending ${rid}`);
+
+                                ctx.eventQueue.pushEventTo({
+                                    event: KoiEvent.fromBundle(EventType.enum.NEW, bundle),
+                                    node: kobj.source
+                                })
+                            }
+                            await ctx.eventQueue.flushWebhookQueue(kobj.source);
+                        }
                     }
-                    await ctx.eventQueue.flushWebhookQueue(kobj.rid);
-                }
             }
         }),
         new KnowledgeHandler({

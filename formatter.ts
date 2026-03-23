@@ -192,7 +192,8 @@ export class TelescopeFormatter {
             `${this.settings.koiSyncFolderPath}/${this.safeFileName(ridType)}`
         );
 
-        const fileName = `${title}.md`;
+        const safeTitle = title.replace(/[*"/\\<>:|?[\]#^]/g, '_');
+        const fileName = safeTitle + ".md";
 
         const file = (
             this.getFileByRid(rid) || 
