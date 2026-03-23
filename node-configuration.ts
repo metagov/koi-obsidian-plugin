@@ -52,7 +52,9 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
 
                 if (!availableRidTypes || availableRidTypes.length === 0) return;
                 if (nodeProfile.node_type !== NodeType.enum.FULL) return;
-
+                
+                // hardcoded delay to allow node profile to propagate before attempting edge negotiation with peers
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 console.log(`identified ${kobj.rid} as provider of ${availableRidTypes}, proposing an edge`);
 
                 ctx.processor.handle({
