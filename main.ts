@@ -120,15 +120,24 @@ export default class KoiPlugin extends Plugin {
                 await (this.app as any).plugins.disablePlugin(pluginId);
                 await (this.app as any).plugins.enablePlugin(pluginId);
             }
-        })
+        });
 
         this.addCommand({
-            id: 'set-node-rid',
-            name: 'Set KOI-net node RID',
-            callback: () => {
-
+            id: 'manual-sync',
+            name: 'Manually sync with network',
+            callback: async () => {
+                const neighbors = await this.node.graph.getNeighbors({direction: "in"});
+                neighbors.forEach(async (nodeRid) => {
+                    const payload = await this.node.requestHandler.fetchManifests({
+                        node: nodeRid,
+                        req: { rid_types: this.settings.interestedRidTypes }
+                    });
+                    payload.manifests.forEach(manifest => {
+                        this.node.processor.handle({manifest, source: nodeRid});
+                    });
+                });
             }
-        })
+        });
 
         this.addCommand({
             id: 'reformat-telescopes',
@@ -138,7 +147,7 @@ export default class KoiPlugin extends Plugin {
                     this.node.cache.listRids()
                 );
             }
-        })
+        });
 
         this.addCommand({
             id: 'recompile-templates',
@@ -146,7 +155,7 @@ export default class KoiPlugin extends Plugin {
             callback: async () => {
                 await this.fileFormatter.compileTemplates();
             }
-        })
+        });
 
         this.addCommand({
             id: 'track-this-note',
@@ -156,7 +165,7 @@ export default class KoiPlugin extends Plugin {
                 if (!(active instanceof TFile)) return;
                 await this.indexer.trackFile(active);
             }
-        })
+        });
 
         this.registerEvent(
             this.app.vault.on('modify', async (file: TFile) => {

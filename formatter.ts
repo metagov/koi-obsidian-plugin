@@ -182,7 +182,7 @@ export class TelescopeFormatter {
         }
 
         let formattedOutput: string;
-        if (ridType in this.handleBarTemplates) {        
+        if (ridType in this.handleBarTemplates) {
             formattedOutput = this.handleBarTemplates[ridType](data);
         } else {
             formattedOutput = JSON.stringify(data);
