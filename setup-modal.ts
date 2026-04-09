@@ -1,4 +1,4 @@
-import { OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE } from "consts";
+import { KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE } from "consts";
 import { App, Modal, Setting } from "obsidian";
 
 
@@ -20,6 +20,7 @@ export class SetupModal extends Modal {
         let firstContactRid = "";
         let firstContactUrl = "";
         let interestedRidTypes = Array<string>(
+            KOI_NET_NODE_TYPE,
             OBSIDIAN_NOTE_TYPE, 
             TELESCOPED_TYPE
         );
