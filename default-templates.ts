@@ -28,6 +28,7 @@ path: {{path}}
 export const DEFAULT_TELESCOPED_TEMPLATE = `\`\`\`
 ---
 {{{yaml this}}}
+thread_link: {{threadLink message_rid thread_timestamp}}
 ---
 \`\`\`
 {{{text}}}

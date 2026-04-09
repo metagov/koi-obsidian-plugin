@@ -56,6 +56,18 @@ export class TelescopeFormatter {
             else
                 return file.path;
         });
+        Handlebars.registerHelper("threadLink", (rid: string, thread_id: string | null) => {
+            console.log(rid, thread_id);
+
+            if (thread_id === null)
+                return null;
+
+            const arr = rid.split("/");
+            if (arr[2] === thread_id)
+                return null;
+            arr[2] = thread_id;
+            return "orn:telescoped:" + arr.join("/");
+        });
     }
 
     async compileTemplates(): Promise<void> {
