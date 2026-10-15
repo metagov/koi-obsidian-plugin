@@ -119,8 +119,9 @@ export const edgeNegotiationHandler = new KnowledgeHandler({
             }
 
             if (abort) {
+                // tell the proposing peer the edge is rejected
                 const event = KoiEvent.fromRID("FORGET", kobj.rid);
-                ctx.eventQueue.pushEventTo({event, node: kobj.rid, flush: true});
+                await ctx.eventQueue.pushEventTo({event, node: peerRid, flush: true});
                 return STOP_CHAIN;
                 
             } else {
