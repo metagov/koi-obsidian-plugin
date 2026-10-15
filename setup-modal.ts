@@ -5,13 +5,13 @@ import { parseRidString } from "rid-lib/utils";
 const NODE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function validateNodeName(value: string): string | null {
-    if (!value) return "Node name is required.";
-    if (!NODE_NAME_PATTERN.test(value)) return "Use only alphanumeric characters, hyphen, or underscore.";
+    if (!value) return "This field is required";
+    if (!NODE_NAME_PATTERN.test(value)) return "Invalid characters used";
     return null;
 }
 
 function validateFirstContactRid(value: string): string | null {
-    if (!value) return "First contact RID is required.";
+    if (!value) return "This field is required";
     try {
         const { ridType } = parseRidString(value);
         if (ridType !== KOI_NET_NODE_TYPE) {
@@ -24,7 +24,7 @@ function validateFirstContactRid(value: string): string | null {
 }
 
 function validateFirstContactUrl(value: string): string | null {
-    if (!value) return "First contact URL is required.";
+    if (!value) return "This field is required";
     try {
         new URL(value);
     } catch {
@@ -72,7 +72,7 @@ export class SetupModal extends Modal {
 
         new Setting(this.contentEl)
             .setName('Node name:')
-            .setDesc("Use only alphanumeric characters, hyphen, or underscore")
+            .setDesc("Use only alphanumeric characters, hyphen, or underscores")
             .addText(text =>
                 text.onChange((value) => {
                     nodeName = value.trim();

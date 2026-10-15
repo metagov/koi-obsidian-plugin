@@ -115,7 +115,12 @@ export class RequestHandler {
         // console.log(result);
 
         const respEnvelope = SignedEnvelope.validate(result.json);
-        this.secure.validateEnvelope(respEnvelope);
+        try {
+            await this.secure.validateEnvelope(respEnvelope);
+        } catch (err) {
+            console.error(`Rejected response from ${node}:`, err);
+            return;
+        }
         return respEnvelope.payload;
     }
 
