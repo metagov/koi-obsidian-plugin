@@ -1,5 +1,4 @@
 import { Plugin, TFile, setIcon, Notice, setTooltip, Menu, MenuItem } from 'obsidian';
-import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
 import { NodeInterface } from 'koi-net/core';
@@ -25,7 +24,6 @@ export default class KoiPlugin extends Plugin {
     statusBarIcon: HTMLElement;
     statusBarText: HTMLElement;
     connected: boolean;
-    syncMutex: Mutex;
     fileFormatter: TelescopeFormatter;
     indexer: Indexer;
 
@@ -63,7 +61,6 @@ export default class KoiPlugin extends Plugin {
 
         console.log("I am", this.node.identity.rid);
 
-        this.syncMutex = new Mutex();
         this.connected = true;
 
         this.statusBarText = this.addStatusBarItem();
@@ -232,7 +229,11 @@ export default class KoiPlugin extends Plugin {
         this.poller = this.registerInterval(
             window.setInterval(
                 async () => {
-                    await this.node.poller.poll();
+                    try {
+                        await this.node.poller.poll();
+                    } catch (err) {
+                        console.error("Poll failed", err);
+                    }
                     // await this.updateStatusBar();
                     // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
                 },

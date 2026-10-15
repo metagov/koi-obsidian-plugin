@@ -4,7 +4,7 @@ import { NodeInterface } from "koi-net/core";
 import { EventType } from "koi-net/protocol/event";
 import KoiPlugin from "main";
 import { ObsidianNote } from "models";
-import { App, Notice, TFile } from "obsidian";
+import { App, getFrontMatterInfo, Notice, parseYaml, TFile } from "obsidian";
 import { Bundle } from "rid-lib/ext/bundle";
 import { KoiPluginSettings } from "settings";
 
@@ -91,7 +91,7 @@ export class Indexer {
         // new Notice("KOI-net: note tracked");
         await this.app.fileManager.processFrontMatter(
             file,
-            async (frontmatter) => {
+            (frontmatter) => {
                 if (!frontmatter[RID_FIELD])
                     frontmatter[RID_FIELD] = `${OBSIDIAN_NOTE_TYPE}:${this.settings.vaultId}/${randomUUID()}`;
 
@@ -104,52 +104,51 @@ export class Indexer {
     }
 
     async handleFile(file: TFile, emit_notice: boolean = true) {
-       await this.app.fileManager.processFrontMatter(
-            file,
-            async (frontmatter) => {
-                if (!frontmatter) {
-                    console.log("didn't find frontmatter");
-                    return;
-                } 
-                
-                if (frontmatter[KOI_NET_ENABLED_FIELD] === false) {
-                    console.log("forgetting", frontmatter[RID_FIELD]);
-                    if (emit_notice) 
-                        new Notice(`KOI-net: Stopped tracking "${file.basename}"`);
-                    this.node.processor.handle({
-                        rid: frontmatter[RID_FIELD],
-                        eventType: EventType.enum.FORGET
-                    });
-                } else {
-                    const data = await this.app.vault.read(file);
-                    delete frontmatter[KOI_NET_ENABLED_FIELD];
+        // read the file directly rather than through processFrontMatter (which
+        // can't await async callbacks) or the metadata cache (which may lag
+        // behind a 'modify' event)
+        const data = await this.app.vault.read(file);
+        const info = getFrontMatterInfo(data);
+        const frontmatter = info.exists ? parseYaml(info.frontmatter) : null;
 
-                    if (!this.node.cache.exists(frontmatter[RID_FIELD]))
-                    //     new Notice("KOI-net: note modified");
-                    // else
-                        if (emit_notice)
-                            new Notice(`KOI-net: Started tracking "${file.basename}"`);
+        if (!frontmatter) {
+            console.log("didn't find frontmatter");
+            return;
+        }
 
-                    const text = data.replace(/^---[\s\S]*?---\n?/, '');
+        if (frontmatter[KOI_NET_ENABLED_FIELD] === false) {
+            console.log("forgetting", frontmatter[RID_FIELD]);
+            if (emit_notice)
+                new Notice(`KOI-net: Stopped tracking "${file.basename}"`);
+            this.node.processor.handle({
+                rid: frontmatter[RID_FIELD],
+                eventType: EventType.enum.FORGET
+            });
+        } else {
+            // the enabled flag stays in the file but isn't part of the shared note
+            delete frontmatter[KOI_NET_ENABLED_FIELD];
 
-                    // console.log(data);
-                    // console.log(text);
+            if (!this.node.cache.exists(frontmatter[RID_FIELD]))
+            //     new Notice("KOI-net: note modified");
+            // else
+                if (emit_notice)
+                    new Notice(`KOI-net: Started tracking "${file.basename}"`);
 
-                    const contents = ObsidianNote.parse({
-                        text,
-                        frontmatter,
-                        basename: file.basename,
-                        path: file.path
-                    });
+            const text = data.slice(info.contentStart);
 
-                    this.node.processor.handle({
-                        bundle: Bundle.generate({
-                            rid: frontmatter[RID_FIELD], contents
-                        })
-                    });
-                }
-                await this.node.processor.flushKobjQueue();
-            }
-        )
+            const contents = ObsidianNote.parse({
+                text,
+                frontmatter,
+                basename: file.basename,
+                path: file.path
+            });
+
+            this.node.processor.handle({
+                bundle: Bundle.generate({
+                    rid: frontmatter[RID_FIELD], contents
+                })
+            });
+        }
+        await this.node.processor.flushKobjQueue();
     }
 }

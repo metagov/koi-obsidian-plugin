@@ -10,6 +10,7 @@ export class NodePoller {
     resolver: NetworkResolver;
     eventQueue: NetworkEventQueue;
     config: KoiNetConfigSchema;
+    private polling = false;
 
     constructor({processor, lifecycle, resolver, eventQueue, config}: {
         processor: ProcessorInterface;
@@ -26,14 +27,25 @@ export class NodePoller {
     }
 
     async poll() {
-        const neighbors = await this.resolver.pollNeighbors();
-        for (const nodeRid in neighbors) {
-            for (const event of neighbors[nodeRid]) {
-                this.processor.handle({event: event, source: nodeRid});
+        // skip this tick if the previous poll is still running
+        if (this.polling) return;
+        this.polling = true;
+
+        try {
+            const neighbors = await this.resolver.pollNeighbors();
+            for (const nodeRid in neighbors) {
+                for (const event of neighbors[nodeRid]) {
+                    this.processor.handle({event: event, source: nodeRid});
+                }
+            }
+            await this.processor.flushKobjQueue();
+        } finally {
+            try {
+                // retry any events that previously failed to send
+                await this.eventQueue.flushAllWebhookQueues();
+            } finally {
+                this.polling = false;
             }
         }
-        await this.processor.flushKobjQueue();
-        // retry any events that previously failed to send
-        await this.eventQueue.flushAllWebhookQueues();
     }
 }

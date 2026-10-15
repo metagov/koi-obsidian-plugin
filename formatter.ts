@@ -225,17 +225,17 @@ export class TelescopeFormatter {
         // console.log(`${rid} metadata:`);
         // console.log(metadata);
 
-        this.setFrontmatter(file, {
+        await this.setFrontmatter(file, {
             [RID_FIELD]: bundle.manifest.rid,
             [TIMESTAMP_FIELD]: bundle.manifest.timestamp,
             [SHA256_HASH_FIELD]: bundle.manifest.sha256_hash
         });
     }
 
-    setFrontmatter(file: TFile, newProps: Record<string, any>) {
-        this.app.fileManager.processFrontMatter(
+    async setFrontmatter(file: TFile, newProps: Record<string, any>) {
+        await this.app.fileManager.processFrontMatter(
             file,
-            async (frontmatter) => {
+            (frontmatter) => {
                 const oldProps = {...frontmatter};
                 for (const key in frontmatter) {
                     delete frontmatter[key];
