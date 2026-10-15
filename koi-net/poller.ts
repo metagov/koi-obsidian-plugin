@@ -2,22 +2,26 @@ import { ProcessorInterface } from "./processor/interface";
 import { NodeLifecycle } from "./lifecycle";
 import { NetworkResolver } from "./network/resolver";
 import { KoiNetConfigSchema } from "./config";
+import { NetworkEventQueue } from "./network/event_queue";
 
 export class NodePoller {
     processor: ProcessorInterface;
     lifecycle: NodeLifecycle;
     resolver: NetworkResolver;
+    eventQueue: NetworkEventQueue;
     config: KoiNetConfigSchema;
 
-    constructor({processor, lifecycle, resolver, config}: {
+    constructor({processor, lifecycle, resolver, eventQueue, config}: {
         processor: ProcessorInterface;
         lifecycle: NodeLifecycle;
         resolver: NetworkResolver;
+        eventQueue: NetworkEventQueue;
         config: KoiNetConfigSchema;
     }) {
         this.processor = processor;
         this.lifecycle = lifecycle;
         this.resolver = resolver;
+        this.eventQueue = eventQueue;
         this.config = config;
     }
 
@@ -29,5 +33,7 @@ export class NodePoller {
             }
         }
         await this.processor.flushKobjQueue();
+        // retry any events that previously failed to send
+        await this.eventQueue.flushAllWebhookQueues();
     }
 }

@@ -73,12 +73,13 @@ export class NetworkEventQueue {
         const queue = this.webhookEventQueue[node];
         
         const events = queue.splice(0, queue.length);
-        
+        if (events.length === 0) return;
+
         console.log(events);
 
         try {
             console.log(`broadcasting ${events.length} events`)
-            this.requestHandler.broadcastEvents({
+            await this.requestHandler.broadcastEvents({
                 node: node,
                 req: { events }
             })
@@ -86,8 +87,16 @@ export class NetworkEventQueue {
             console.log(err);
 
             if (requeueOnFail) {
-                queue.push(...events);
+                // put failed events back in front of any queued since, preserving order
+                queue.unshift(...events);
             }
+        }
+    }
+
+    async flushAllWebhookQueues() {
+        for (const node of Object.keys(this.webhookEventQueue)) {
+            if (this.webhookEventQueue[node].length > 0)
+                await this.flushWebhookQueue(node);
         }
     }
 }

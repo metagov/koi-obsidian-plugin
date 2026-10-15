@@ -74,10 +74,11 @@ export class RequestHandler {
         return nodeUrl;
     }
 
-    async makeRequest({ node, req, path }: {
+    async makeRequest({ node, req, path, throwOnFailure = false }: {
         node: string,
         path: string,
-        req: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq
+        req: EventsPayload | PollEventsReq | FetchRidsReq | FetchManifestsReq | FetchBundlesReq,
+        throwOnFailure?: boolean
     }): Promise<PayloadUnion | undefined> {
         const url = (await this.getUrl(node)) + path;
         
@@ -99,13 +100,16 @@ export class RequestHandler {
             });
         } catch(err) {
             console.log(err);
+            if (throwOnFailure) throw err;
             return;
         }
-        
+
         // console.log(result);
 
         if (result.status !== 200) {
             console.error(result.text);
+            if (throwOnFailure)
+                throw new Error(`Request to ${url} failed with status ${result.status}`);
             return ErrorResponse.parse(result.json);
         }
 
@@ -128,10 +132,12 @@ export class RequestHandler {
         node: string,
         req: Omit<EventsPayload, "type">
     }): Promise<void> {
+        // throws on failure so the event queue can requeue undelivered events
         await this.makeRequest({
             node,
             path: BROADCAST_EVENTS_PATH,
-            req: EventsPayload.parse(req)
+            req: EventsPayload.parse(req),
+            throwOnFailure: true
         });
     }
 

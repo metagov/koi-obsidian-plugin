@@ -11,17 +11,22 @@ export class SignedEnvelope {
     source_node: string;
     target_node: string;
     signature: string;
+    // unsigned envelope serialized from the raw received object, so signature
+    // verification isn't affected by zod reordering, stripping, or defaulting fields
+    rawUnsignedJson?: string;
 
-    constructor({payload, source_node, target_node, signature}: {
+    constructor({payload, source_node, target_node, signature, rawUnsignedJson}: {
         payload: PayloadUnion,
         source_node: string,
         target_node: string,
-        signature: string 
+        signature: string,
+        rawUnsignedJson?: string
     }) {
         this.payload = payload;
         this.source_node = source_node;
         this.target_node = target_node;
         this.signature = signature;
+        this.rawUnsignedJson = rawUnsignedJson;
     }
 
     static schema = z.object({
@@ -43,7 +48,12 @@ export class SignedEnvelope {
             payload: parsed.payload,
             source_node: parsed.source_node,
             target_node: parsed.target_node,
-            signature: parsed.signature
+            signature: parsed.signature,
+            rawUnsignedJson: JSON.stringify({
+                payload: obj.payload,
+                source_node: obj.source_node,
+                target_node: obj.target_node
+            })
         });
     }
 
@@ -53,7 +63,11 @@ export class SignedEnvelope {
             source_node: this.source_node,
             target_node: this.target_node
         });
-        const data = new Uint8Array(unsignedEnvelope.toJsonBuffer());
+        const data = new Uint8Array(
+            this.rawUnsignedJson !== undefined
+                ? Buffer.from(this.rawUnsignedJson)
+                : unsignedEnvelope.toJsonBuffer()
+        );
 
         return await pubKey.verify(this.signature, data);
     }
