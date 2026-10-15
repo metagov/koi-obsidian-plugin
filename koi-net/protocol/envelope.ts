@@ -2,8 +2,7 @@
 
 import { z } from 'zod';
 import { PrivateKey, PublicKey } from './secure';
-import { EventsPayload, PayloadUnion } from './api_models';
-import { KoiEvent } from './event';
+import { PayloadUnion } from './api_models';
 
 
 export class SignedEnvelope {

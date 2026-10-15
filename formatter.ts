@@ -1,5 +1,5 @@
 import KoiPlugin from "main";
-import { App, normalizePath, stringifyYaml, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { App, stringifyYaml, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import type { KoiPluginSettings } from "settings";
 import * as Handlebars from 'handlebars';
 import { Notice } from "obsidian";

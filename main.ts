@@ -1,17 +1,13 @@
-import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo, MetadataCache, Menu, MenuItem } from 'obsidian';
+import { Plugin, TFile, setIcon, Notice, setTooltip, Menu, MenuItem } from 'obsidian';
 import { Mutex } from 'async-mutex';
 import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
 import { TelescopeFormatter } from 'formatter';
-import { defaultTelescopeTemplate } from 'default-template';
-import { RequestHandler } from 'koi-net/network/request_handlers';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
 import { PrivateKey } from 'koi-net/protocol/secure';
 import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
 import { EventType } from 'koi-net/protocol/event';
-import { randomUUID } from 'crypto';
-import { Bundle } from 'rid-lib/ext/bundle';
 import { configureNode } from 'node-configuration';
 import { SetupModal } from 'setup-modal';
 import { Indexer } from 'indexer';

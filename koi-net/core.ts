@@ -25,7 +25,6 @@ export class NodeInterface {
     effector: Effector;
     secure: Secure;
     requestHandler: RequestHandler;
-    network: NetworkResolver;
     processor: ProcessorInterface;
     graph: NetworkGraph;
     resolver: NetworkResolver;
