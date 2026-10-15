@@ -37,7 +37,7 @@ export default class KoiPlugin extends Plugin {
         this.addSettingTab(new KoiSettingTab(this.app, this));
 
         this.settings.vaultId = (this.app as unknown as { appId: string }).appId;
-        this.saveSettings();
+        await this.saveSettings();
 
         // window.plugin = this;
 
@@ -67,7 +67,7 @@ export default class KoiPlugin extends Plugin {
         this.statusBarIcon = this.addStatusBarItem();
         this.statusBarIcon.addClass("koi-status-icon");
         this.statusBarIcon.setAttribute("data-tooltip-position", "top");
-        this.statusBarIcon.addEventListener("click", async () => {
+        this.statusBarIcon.addEventListener("click", () => {
             if (!this.settings.initialized) {
                 this.createSetupModal();
             }
@@ -120,15 +120,21 @@ export default class KoiPlugin extends Plugin {
             name: 'Manually sync with network',
             callback: async () => {
                 const neighbors = await this.node.graph.getNeighbors({direction: "in"});
-                neighbors.forEach(async (nodeRid) => {
-                    const payload = await this.node.requestHandler.fetchManifests({
-                        node: nodeRid,
-                        req: { rid_types: this.settings.interestedRidTypes }
-                    });
-                    payload.manifests.forEach(manifest => {
-                        this.node.processor.handle({manifest, source: nodeRid});
-                    });
-                });
+                for (const nodeRid of neighbors) {
+                    // one unreachable node shouldn't stop the others from syncing
+                    try {
+                        const payload = await this.node.requestHandler.fetchManifests({
+                            node: nodeRid,
+                            req: { rid_types: this.settings.interestedRidTypes }
+                        });
+                        for (const manifest of payload.manifests) {
+                            this.node.processor.handle({manifest, source: nodeRid});
+                        }
+                    } catch (err) {
+                        console.error(`Manual sync with ${nodeRid} failed`, err);
+                    }
+                }
+                await this.node.processor.flushKobjQueue();
             }
         });
 
@@ -197,7 +203,7 @@ export default class KoiPlugin extends Plugin {
                         .onClick(async () => {
                             const file = this.fileFormatter.getFileByRid(url);
                             if (!file) return;
-                            this.app.workspace.getLeaf().openFile(file);
+                            await this.app.workspace.getLeaf().openFile(file);
                         })
                 })
             }
@@ -205,8 +211,18 @@ export default class KoiPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             console.log("calling setup");
-            this.setup();
+            void this.runSetup();
         })
+    }
+
+    // setup with failures surfaced to the user instead of lost as unhandled rejections
+    async runSetup() {
+        try {
+            await this.setup();
+        } catch (err) {
+            console.error("KOI-net setup failed", err);
+            new Notice("KOI-net: Failed to start node, see console for details");
+        }
     }
 
     async setup() {
@@ -228,12 +244,10 @@ export default class KoiPlugin extends Plugin {
         new Notice("KOI-net: Started polling network...");
         this.poller = this.registerInterval(
             window.setInterval(
-                async () => {
-                    try {
-                        await this.node.poller.poll();
-                    } catch (err) {
+                () => {
+                    this.node.poller.poll().catch(err => {
                         console.error("Poll failed", err);
-                    }
+                    });
                     // await this.updateStatusBar();
                     // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
                 },
@@ -272,7 +286,7 @@ export default class KoiPlugin extends Plugin {
 
                 new Notice(`KOI-net: Node RID set to ${nodeRid}`);
 
-                await this.setup();
+                await this.runSetup();
             }
         ).open();
     }

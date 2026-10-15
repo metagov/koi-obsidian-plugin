@@ -93,16 +93,16 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                         payload.rids.forEach(
                             rid => {ctx.processor.handle({rid, source: kobj.source})});
 
-                        // send existing obsidian notes if the 
-                        console.log(`Identied obsidian manger, sending existing notes`);
+                        // send existing obsidian notes if the source node subscribes to them
                         if (edgeProfile.rid_types.contains(OBSIDIAN_NOTE_TYPE)) {
+                            console.log(`Identified obsidian manager, sending existing notes`);
                             for (const rid of plugin.indexer.listRids()) {
                                 const bundle = await node.effector.deref({ rid });
                                 if (!bundle) continue;
 
                                 console.log(`sending ${rid}`);
 
-                                ctx.eventQueue.pushEventTo({
+                                await ctx.eventQueue.pushEventTo({
                                     event: KoiEvent.fromBundle(EventType.enum.NEW, bundle),
                                     node: kobj.source
                                 })

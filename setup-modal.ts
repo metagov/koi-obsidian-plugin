@@ -1,5 +1,5 @@
 import { KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE } from "consts";
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Notice, Setting } from "obsidian";
 import { parseRidString } from "rid-lib/utils";
 
 const NODE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -55,7 +55,7 @@ export class SetupModal extends Modal {
                 firstContactUrl: string,
                 interestedRidTypes: Array<string>
             }
-        ) => void
+        ) => Promise<void>
     ) {
         super(app);
         this.setTitle("Set up your KOI node!");
@@ -149,6 +149,9 @@ export class SetupModal extends Modal {
                             firstContactRid,
                             firstContactUrl,
                             interestedRidTypes
+                        }).catch(err => {
+                            console.error("KOI-net setup failed", err);
+                            new Notice("KOI-net: Setup failed, see console for details");
                         });
                     }));
     }
