@@ -11,6 +11,7 @@ import { configureNode } from 'node-configuration';
 import { SetupModal } from 'setup-modal';
 import { Indexer } from 'indexer';
 import { KOI_NET_NODE_TYPE } from 'consts';
+import { mergeDefaults } from 'utils';
 
 
 
@@ -106,7 +107,7 @@ export default class KoiPlugin extends Plugin {
                 await this.fileFormatter.drop();
                 await this.updateStatusBar();
 
-                this.settings = DEFAULT_SETTINGS;
+                this.settings = structuredClone(DEFAULT_SETTINGS);
                 await this.saveSettings();
 
                 const pluginId = this.manifest.id;
@@ -127,6 +128,7 @@ export default class KoiPlugin extends Plugin {
                             node: nodeRid,
                             req: { rid_types: this.settings.interestedRidTypes }
                         });
+                        if (!payload) continue;
                         for (const manifest of payload.manifests) {
                             this.node.processor.handle({manifest, source: nodeRid});
                         }
@@ -313,7 +315,9 @@ export default class KoiPlugin extends Plugin {
 
     async loadSettings() {
         const loadedSettings = await this.loadData();
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);
+        // clone so setup never mutates DEFAULT_SETTINGS, and deep merge so
+        // newly added config fields get defaults for existing users
+        this.settings = mergeDefaults(structuredClone(DEFAULT_SETTINGS), loadedSettings);
     }
 
     async saveSettings() {
