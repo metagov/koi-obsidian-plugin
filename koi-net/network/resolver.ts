@@ -56,17 +56,7 @@ export class NetworkResolver {
                 req: {limit: 0} 
             });
 
-            // console.log(payload);
-
-            if (!payload) {
-                continue;
-            }
-            
-            if (payload.type !== "events_payload") {
-                continue;
-            }
-            
-            if (payload.events) {
+            if (payload) {
                 eventsMap[nodeRid] = payload.events;
             }
         }

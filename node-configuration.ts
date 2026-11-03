@@ -87,11 +87,13 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                             node: kobj.source,
                             req: { rid_types: edgeProfile.rid_types }
                         });
-                        
-                        console.log(`Retrieved ${payload.rids.length} RIDs from source node`)
 
-                        payload.rids.forEach(
-                            rid => {ctx.processor.handle({rid, source: kobj.source})});
+                        if (payload) {
+                            console.log(`Retrieved ${payload.rids.length} RIDs from source node`)
+
+                            payload.rids.forEach(
+                                rid => {ctx.processor.handle({rid, source: kobj.source})});
+                        }
 
                         // send existing obsidian notes if the source node subscribes to them
                         if (edgeProfile.rid_types.contains(OBSIDIAN_NOTE_TYPE)) {

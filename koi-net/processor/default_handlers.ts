@@ -175,6 +175,7 @@ export const coordinatorContact = new KnowledgeHandler({
             node: kobj.rid,
             req: {rid_types: [KOI_NET_NODE_TYPE]}
         });
+        if (!payload) return;
         for (const rid of payload.rids) {
             ctx.processor.handle({rid, source: kobj.rid});
         }
