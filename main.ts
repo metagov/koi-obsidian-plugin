@@ -1,5 +1,5 @@
 import { Plugin, TFile, setIcon, Notice, setTooltip, Menu, MenuItem } from 'obsidian';
-import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
+import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS, ridTypesOfInterest } from 'settings';
 import { TelescopeFormatter } from 'formatter';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
@@ -126,7 +126,7 @@ export default class KoiPlugin extends Plugin {
                     try {
                         const payload = await this.node.requestHandler.fetchManifests({
                             node: nodeRid,
-                            req: { rid_types: this.settings.interestedRidTypes }
+                            req: { rid_types: ridTypesOfInterest(this.settings) }
                         });
                         if (!payload) continue;
                         for (const manifest of payload.manifests) {

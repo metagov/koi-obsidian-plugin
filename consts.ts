@@ -9,6 +9,10 @@ export const OBSIDIAN_NOTE_TYPE = "orn:obsidian.note";
 export const TELESCOPED_TYPE = "orn:telescoped";
 export const SLACK_USER_TYPE = "orn:slack.user";
 
+// content RID types subscribed to by default; KOI_NET_NODE_TYPE is always
+// added on top of the user's list (see ridTypesOfInterest)
+export const DEFAULT_INTERESTED_RID_TYPES = [OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE];
+
 // the RID cache always lives in this subdirectory of the sync folder
 export const RID_CACHE_FOLDER_NAME = "RID Cache";
 

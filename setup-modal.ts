@@ -1,4 +1,4 @@
-import { KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE } from "consts";
+import { DEFAULT_INTERESTED_RID_TYPES, KOI_NET_NODE_TYPE } from "consts";
 import { App, Modal, Notice, Setting } from "obsidian";
 import { parseRidString } from "rid-lib/utils";
 
@@ -62,11 +62,7 @@ export class SetupModal extends Modal {
         let nodeName = "";
         let firstContactRid = "";
         let firstContactUrl = "";
-        let interestedRidTypes = Array<string>(
-            KOI_NET_NODE_TYPE,
-            OBSIDIAN_NOTE_TYPE,
-            TELESCOPED_TYPE
-        );
+        let interestedRidTypes = [...DEFAULT_INTERESTED_RID_TYPES];
 
         let attemptedSubmit = false;
 
@@ -102,7 +98,7 @@ export class SetupModal extends Modal {
             .setName('RID types of interest')
             .setDesc('Enter one RID type per line')
             .addTextArea(text => text
-                .setValue(`${OBSIDIAN_NOTE_TYPE}\n${TELESCOPED_TYPE}`)
+                .setValue(interestedRidTypes.join('\n'))
                 .onChange((value) => {
                     interestedRidTypes = value.split('\n')
                         .map(line => line.trim())

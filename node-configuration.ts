@@ -7,6 +7,7 @@ import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { parseRidString } from "rid-lib/utils";
 
 import KoiPlugin from "main";
+import { ridTypesOfInterest } from "settings";
 import { EventType, KoiEvent } from "koi-net/protocol/event";
 import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from "consts";
 
@@ -48,7 +49,7 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                 const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
 
                 const availableRidTypes = nodeProfile.provides.event?.filter(
-                    item => plugin.settings.interestedRidTypes.includes(item));
+                    item => ridTypesOfInterest(plugin.settings).includes(item));
 
                 if (!availableRidTypes || availableRidTypes.length === 0) return;
                 if (nodeProfile.node_type !== NodeType.enum.FULL) return;

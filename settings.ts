@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type KoiPlugin from "main";
 import { KoiNetConfigSchema } from 'koi-net/config';
-import { OBSIDIAN_NOTE_TYPE } from 'consts';
+import { DEFAULT_INTERESTED_RID_TYPES, KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from 'consts';
 
 export interface KoiPluginSettings {
     config: KoiNetConfigSchema;
@@ -34,13 +34,17 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
     },
 	koiSyncFolderPath: "KOI Sync",
 	templatePath: "KOI Templates",
-    interestedRidTypes: [
-        OBSIDIAN_NOTE_TYPE
-    ],
+    interestedRidTypes: [...DEFAULT_INTERESTED_RID_TYPES],
     vaultId: undefined,
     initialized: false,
     syncPaused: false
 
+}
+
+// node discovery depends on subscribing to node events, so KOI_NET_NODE_TYPE is
+// always included regardless of what the user has configured
+export function ridTypesOfInterest(settings: KoiPluginSettings): Array<string> {
+    return [...new Set([KOI_NET_NODE_TYPE, ...settings.interestedRidTypes])];
 }
 
 export class KoiSettingTab extends PluginSettingTab {
