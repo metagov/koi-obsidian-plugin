@@ -94,15 +94,25 @@ export default class KoiPlugin extends Plugin {
             id: 'reset',
             name: 'Reset this plugin',
             callback: async () => {
-                
-                console.log("forgetting myself...")
-                this.node.processor.handle({
-                    rid: this.node.identity.rid,
-                    eventType: EventType.enum.FORGET
-                })
-                await this.node.processor.flushKobjQueue();
-                console.log("done");
-                
+                // stop polling so a running tick can't repopulate the cache mid-reset
+                window.clearInterval(this.poller);
+
+                // an uninitialized node has no RID to forget; a failed forget
+                // shouldn't block the local reset either
+                if (this.settings.initialized && this.node.identity.rid) {
+                    try {
+                        console.log("forgetting myself...")
+                        this.node.processor.handle({
+                            rid: this.node.identity.rid,
+                            eventType: EventType.enum.FORGET
+                        })
+                        await this.node.processor.flushKobjQueue();
+                        console.log("done");
+                    } catch (err) {
+                        console.error("Failed to forget node, resetting locally anyway", err);
+                    }
+                }
+
                 await this.cache.drop();
                 await this.fileFormatter.drop();
                 await this.updateStatusBar();

@@ -6,7 +6,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 // other non-object values from `loaded` replace the default outright
 export function mergeDefaults<T>(defaults: T, loaded: unknown): T {
     if (!isPlainObject(defaults) || !isPlainObject(loaded))
-        return (loaded === undefined ? defaults : loaded) as T;
+        return (loaded === undefined || loaded === null ? defaults : loaded) as T;
 
     const merged: Record<string, unknown> = { ...defaults };
     for (const [key, value] of Object.entries(loaded)) {
