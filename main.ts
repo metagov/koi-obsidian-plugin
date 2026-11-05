@@ -88,13 +88,14 @@ export default class KoiPlugin extends Plugin {
         // 	}
         // });
 
-        this.addCommand({
-            id: 'drop-rid-cache',
-            name: 'Drop RID cache',
-            callback: async () => {
-                await this.cache.drop();
-            }
-        });
+        // dev only
+        // this.addCommand({
+        //     id: 'drop-rid-cache',
+        //     name: 'Drop RID cache',
+        //     callback: async () => {
+        //         await this.cache.drop();
+        //     }
+        // });
 
         this.addCommand({
             id: 'reset',
@@ -142,7 +143,7 @@ export default class KoiPlugin extends Plugin {
 
         this.addCommand({
             id: 'reformat-telescopes',
-            name: 'Reformat telescopes from template',
+            name: 'Reformat all synced notes from templates',
             callback: async () => {
                 await this.fileFormatter.writeMultiple(
                     this.node.cache.listRids()
@@ -380,7 +381,7 @@ export default class KoiPlugin extends Plugin {
 
         if (!this.settings.initialized) {
             this.statusBarIconString = "circle-play";
-            setTooltip(this.statusBarIcon, "Click to setup your KOI-net node!");
+            setTooltip(this.statusBarIcon, "Click to set up your KOI-net node!");
         } else if (this.settings.syncPaused) {
             this.statusBarIconString = "circle-pause";
             setTooltip(this.statusBarIcon, "Paused. Click to resume syncing");
