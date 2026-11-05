@@ -32,8 +32,8 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         },
         priv_key: undefined
     },
-	koiSyncFolderPath: "koi",
-	templatePath: "koi-templates",
+	koiSyncFolderPath: "KOI Sync",
+	templatePath: "KOI Templates",
     interestedRidTypes: [
         OBSIDIAN_NOTE_TYPE
     ],
@@ -101,7 +101,7 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('Sync directory path')
             .setDesc('Directory used to store RID objects synced through KOI')
             .addText(text => text
-                .setPlaceholder('koi')
+                .setPlaceholder('KOI Sync')
                 .setValue(this.plugin.settings.koiSyncFolderPath)
                 .onChange(async (value) => {
                     this.plugin.settings.koiSyncFolderPath = value;
@@ -113,7 +113,7 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('Template file location')
             .setDesc('Will be used to generate documents imported from KOI')
             .addText(text => text
-                .setPlaceholder('')
+                .setPlaceholder('KOI Templates')
                 .setValue(this.plugin.settings.templatePath)
                 .onChange(async (value) => {
                     this.plugin.settings.templatePath = value;

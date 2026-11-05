@@ -7,7 +7,7 @@ import { KoiCache } from "rid-lib/ext/cache";
 import { Effector } from "koi-net/effector";
 import { parseRidString } from "rid-lib/utils";
 import { ObsidianNote } from "models";
-import { OBSIDIAN_NOTE_TYPE, RID_FIELD, SHA256_HASH_FIELD, SLACK_USER_TYPE, TELESCOPED_TYPE, TIMESTAMP_FIELD } from "consts";
+import { OBSIDIAN_NOTE_TYPE, RID_FIELD, RID_TYPE_FOLDER_NAMES, SHA256_HASH_FIELD, SLACK_USER_TYPE, TELESCOPED_TYPE, TIMESTAMP_FIELD } from "consts";
 import { TelescopeContentsSchema } from "telescope-types";
 import { toFilenameSafeDateWithMs } from "utils";
 import { DEFAULT_TABLE } from "default-templates";
@@ -141,6 +141,10 @@ export class TelescopeFormatter {
         return name.replace(/[^a-zA-Z0-9-_.+ ]/g, '_')
     }
 
+    typeFolderName(ridType: string): string {
+        return RID_TYPE_FOLDER_NAMES[ridType] ?? this.safeFileName(ridType);
+    }
+
     async writeMultiple(rids: Array<string>) {
         const notice = new Notice("", 0);
         let count = 0;
@@ -201,7 +205,7 @@ export class TelescopeFormatter {
         }
 
         const subFolder = await this.getFolderByPath(
-            `${this.settings.koiSyncFolderPath}/${this.safeFileName(ridType)}`
+            `${this.settings.koiSyncFolderPath}/${this.typeFolderName(ridType)}`
         );
 
         const safeTitle = title.replace(/[*"/\\<>:|?[\]#^]/g, '_');
