@@ -6,6 +6,7 @@ import KoiPlugin from "main";
 import { ObsidianNote } from "models";
 import { App, getFrontMatterInfo, Notice, parseYaml, TFile } from "obsidian";
 import { Bundle } from "rid-lib/ext/bundle";
+import { parseRidString } from "rid-lib/utils";
 import { KoiPluginSettings } from "settings";
 
 export class Indexer {
@@ -39,6 +40,31 @@ export class Indexer {
             await this.handleFile(file, false);
         }
         console.log(this.fileIndex);
+    }
+
+    // forgets this vault's cached notes whose files no longer exist, e.g. ones
+    // deleted while the plugin wasn't running or while syncing was paused
+    async forgetDeletedNotes() {
+        const trackedRids = new Set(Object.values(this.fileIndex));
+
+        for (const rid of this.node.cache.listRids([OBSIDIAN_NOTE_TYPE])) {
+            const { reference } = parseRidString(rid);
+            if (!reference?.startsWith(`${this.settings.vaultId}/`)) continue;
+            if (trackedRids.has(rid)) continue;
+
+            // the metadata cache may not have indexed every note at startup, so
+            // only forget notes whose last known file is also gone
+            const bundle = await this.node.cache.read(rid);
+            const path = bundle?.contents.path;
+            if (typeof path === "string" && this.app.vault.getFileByPath(path)) continue;
+
+            console.log("forgetting deleted note", rid);
+            this.node.processor.handle({
+                rid,
+                eventType: EventType.enum.FORGET
+            });
+        }
+        await this.node.processor.flushKobjQueue();
     }
 
     listRids(): Array<string> {

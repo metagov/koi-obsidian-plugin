@@ -27,8 +27,8 @@ export class NodePoller {
     }
 
     async poll() {
-        // skip this tick if the previous poll is still running
-        if (this.polling) return;
+        // skip this tick if the previous poll is still running or syncing is paused
+        if (this.polling || this.processor.paused) return;
         this.polling = true;
 
         try {

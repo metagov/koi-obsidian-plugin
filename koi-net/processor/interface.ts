@@ -8,6 +8,9 @@ import { KnowledgePipeline } from "./knowledge_pipeline";
 export class ProcessorInterface {
     pipeline: KnowledgePipeline
     kobjQueue: Array<KnowledgeObject>;
+    // while paused, queued kobjs are held unprocessed (no cache writes or
+    // network events) until the next flush after unpausing
+    paused: boolean;
     private activeFlush: Promise<void> | null;
 
     constructor({pipeline}: {
@@ -15,6 +18,7 @@ export class ProcessorInterface {
     }) {
         this.pipeline = pipeline;
         this.kobjQueue = [];
+        this.paused = false;
         this.activeFlush = null;
     }
 
@@ -30,7 +34,7 @@ export class ProcessorInterface {
     }
 
     private async drainQueue() {
-        while (this.kobjQueue.length > 0) {
+        while (!this.paused && this.kobjQueue.length > 0) {
             const kobj = this.kobjQueue.shift();
             if (kobj) {
                 console.log(`Dequeued ${kobj.stringify()}`);

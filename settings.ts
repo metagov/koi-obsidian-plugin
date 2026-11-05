@@ -10,6 +10,7 @@ export interface KoiPluginSettings {
     interestedRidTypes: Array<string>;
     vaultId: string | undefined;
     initialized: boolean;
+    syncPaused: boolean;
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
@@ -38,8 +39,9 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         OBSIDIAN_NOTE_TYPE
     ],
     vaultId: undefined,
-    initialized: false
-    
+    initialized: false,
+    syncPaused: false
+
 }
 
 export class KoiSettingTab extends PluginSettingTab {
