@@ -103,12 +103,16 @@ export class KnowledgePipeline {
                     req: {rids: [kobj.rid]}
                 })
 
-                if (!payload.manifests) {
+                // payload is undefined if the request failed; match by RID rather
+                // than taking [0], which may be missing or a different object
+                const rid = kobj.rid;
+                const manifest = payload?.manifests.find(m => m.rid === rid);
+                if (!manifest) {
                     console.warn("failed to find manifest");
                     return;
                 }
 
-                kobj.manifest = payload.manifests[0];
+                kobj.manifest = manifest;
             }
 
             kobj = await this.callHandlerChain(HandlerType.Manifest, kobj);
@@ -126,12 +130,14 @@ export class KnowledgePipeline {
                     req: {rids: [kobj.rid]}
                 })
 
-                if (!payload.bundles) {
+                const rid = kobj.rid;
+                const bundle = payload?.bundles.find(b => b.rid === rid);
+                if (!bundle) {
                     console.warn("failed to find bundle");
                     return;
                 }
 
-                const { manifest, contents } = payload.bundles[0];
+                const { manifest, contents } = bundle;
 
                 kobj.manifest = manifest;
                 kobj.contents = contents;

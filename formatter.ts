@@ -1,5 +1,5 @@
 import KoiPlugin from "main";
-import { App, normalizePath, stringifyYaml, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { App, stringifyYaml, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
 import type { KoiPluginSettings } from "settings";
 import * as Handlebars from 'handlebars';
 import { Notice } from "obsidian";
@@ -7,7 +7,7 @@ import { KoiCache } from "rid-lib/ext/cache";
 import { Effector } from "koi-net/effector";
 import { parseRidString } from "rid-lib/utils";
 import { ObsidianNote } from "models";
-import { OBSIDIAN_NOTE_TYPE, RID_FIELD, SHA256_HASH_FIELD, SLACK_USER_TYPE, TELESCOPED_TYPE, TIMESTAMP_FIELD } from "consts";
+import { OBSIDIAN_NOTE_TYPE, RID_FIELD, RID_TYPE_FOLDER_NAMES, SHA256_HASH_FIELD, SLACK_USER_TYPE, TELESCOPED_TYPE, TIMESTAMP_FIELD } from "consts";
 import { TelescopeContentsSchema } from "telescope-types";
 import { toFilenameSafeDateWithMs } from "utils";
 import { DEFAULT_TABLE } from "default-templates";
@@ -122,7 +122,11 @@ export class TelescopeFormatter {
         if (!folder) return;
 
         for (const subFolder of folder.children) {
-            if (!(subFolder instanceof TFolder)) 
+            if (!(subFolder instanceof TFolder))
+                continue;
+
+            // the RID cache only holds bundle JSON, not rendered notes
+            if (subFolder.path === this.cache.directoryPath)
                 continue;
 
             for (const file of subFolder.children) {
@@ -139,6 +143,10 @@ export class TelescopeFormatter {
 
     safeFileName(name: string): string {
         return name.replace(/[^a-zA-Z0-9-_.+ ]/g, '_')
+    }
+
+    typeFolderName(ridType: string): string {
+        return RID_TYPE_FOLDER_NAMES[ridType] ?? this.safeFileName(ridType);
     }
 
     async writeMultiple(rids: Array<string>) {
@@ -201,7 +209,7 @@ export class TelescopeFormatter {
         }
 
         const subFolder = await this.getFolderByPath(
-            `${this.settings.koiSyncFolderPath}/${this.safeFileName(ridType)}`
+            `${this.settings.koiSyncFolderPath}/${this.typeFolderName(ridType)}`
         );
 
         const safeTitle = title.replace(/[*"/\\<>:|?[\]#^]/g, '_');
@@ -225,17 +233,17 @@ export class TelescopeFormatter {
         // console.log(`${rid} metadata:`);
         // console.log(metadata);
 
-        this.setFrontmatter(file, {
+        await this.setFrontmatter(file, {
             [RID_FIELD]: bundle.manifest.rid,
             [TIMESTAMP_FIELD]: bundle.manifest.timestamp,
             [SHA256_HASH_FIELD]: bundle.manifest.sha256_hash
         });
     }
 
-    setFrontmatter(file: TFile, newProps: Record<string, any>) {
-        this.app.fileManager.processFrontMatter(
+    async setFrontmatter(file: TFile, newProps: Record<string, any>) {
+        await this.app.fileManager.processFrontMatter(
             file,
-            async (frontmatter) => {
+            (frontmatter) => {
                 const oldProps = {...frontmatter};
                 for (const key in frontmatter) {
                     delete frontmatter[key];

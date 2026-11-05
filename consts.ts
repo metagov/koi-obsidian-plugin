@@ -8,3 +8,20 @@ export const KOI_NET_EDGE_TYPE = "orn:koi-net.edge";
 export const OBSIDIAN_NOTE_TYPE = "orn:obsidian.note";
 export const TELESCOPED_TYPE = "orn:telescoped";
 export const SLACK_USER_TYPE = "orn:slack.user";
+
+// content RID types subscribed to by default; KOI_NET_NODE_TYPE is always
+// added on top of the user's list (see ridTypesOfInterest)
+export const DEFAULT_INTERESTED_RID_TYPES = [OBSIDIAN_NOTE_TYPE, TELESCOPED_TYPE];
+
+// the RID cache always lives in this subdirectory of the sync folder
+export const RID_CACHE_FOLDER_NAME = "RID Cache";
+
+// sync folder subdirectory names for built-in RID types, other types fall
+// back to a filename-safe version of the RID type
+export const RID_TYPE_FOLDER_NAMES: Record<string, string> = {
+    [KOI_NET_NODE_TYPE]: "KOI-net Nodes",
+    [KOI_NET_EDGE_TYPE]: "KOI-net Edges",
+    [OBSIDIAN_NOTE_TYPE]: "Obsidian Notes",
+    [TELESCOPED_TYPE]: "Telescoped Messages",
+    [SLACK_USER_TYPE]: "Slack Users",
+};

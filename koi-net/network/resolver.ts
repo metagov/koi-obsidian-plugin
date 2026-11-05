@@ -3,9 +3,7 @@ import { KoiCache } from "rid-lib/ext/cache";
 import { NetworkGraph } from "./graph";
 import { RequestHandler } from "./request_handlers";
 import { KoiEvent } from "koi-net/protocol/event";
-import { PollEventsReq } from "koi-net/protocol/api_models";
-import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
-import { EdgeType } from "koi-net/protocol/edge";
+import { NodeProfileSchema } from "koi-net/protocol/node";
 import { KoiNetConfigSchema } from "koi-net/config";
 import { Effector } from "koi-net/effector";
 import { KOI_NET_NODE_TYPE } from "consts";
@@ -58,17 +56,7 @@ export class NetworkResolver {
                 req: {limit: 0} 
             });
 
-            // console.log(payload);
-
-            if (!payload) {
-                continue;
-            }
-            
-            if (payload.type !== "events_payload") {
-                continue;
-            }
-            
-            if (payload.events) {
+            if (payload) {
                 eventsMap[nodeRid] = payload.events;
             }
         }

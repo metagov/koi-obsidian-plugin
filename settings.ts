@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type KoiPlugin from "main";
 import { KoiNetConfigSchema } from 'koi-net/config';
-import { OBSIDIAN_NOTE_TYPE } from 'consts';
+import { DEFAULT_INTERESTED_RID_TYPES, KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from 'consts';
 
 export interface KoiPluginSettings {
     config: KoiNetConfigSchema;
@@ -10,6 +10,7 @@ export interface KoiPluginSettings {
     interestedRidTypes: Array<string>;
     vaultId: string | undefined;
     initialized: boolean;
+    syncPaused: boolean;
 }
 
 export const DEFAULT_SETTINGS: KoiPluginSettings = {
@@ -24,7 +25,6 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
             },
             public_key: ""
         },
-        cache_directory_path: "rid_cache",
         polling_interval: 5,
         first_contact: {
             rid: undefined,
@@ -32,14 +32,19 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
         },
         priv_key: undefined
     },
-	koiSyncFolderPath: "koi",
-	templatePath: "koi-templates",
-    interestedRidTypes: [
-        OBSIDIAN_NOTE_TYPE
-    ],
+	koiSyncFolderPath: "KOI Sync",
+	templatePath: "KOI Templates",
+    interestedRidTypes: [...DEFAULT_INTERESTED_RID_TYPES],
     vaultId: undefined,
-    initialized: false
-    
+    initialized: false,
+    syncPaused: false
+
+}
+
+// node discovery depends on subscribing to node events, so KOI_NET_NODE_TYPE is
+// always included regardless of what the user has configured
+export function ridTypesOfInterest(settings: KoiPluginSettings): Array<string> {
+    return [...new Set([KOI_NET_NODE_TYPE, ...settings.interestedRidTypes])];
 }
 
 export class KoiSettingTab extends PluginSettingTab {
@@ -101,7 +106,7 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('Sync directory path')
             .setDesc('Directory used to store RID objects synced through KOI')
             .addText(text => text
-                .setPlaceholder('koi')
+                .setPlaceholder('KOI Sync')
                 .setValue(this.plugin.settings.koiSyncFolderPath)
                 .onChange(async (value) => {
                     this.plugin.settings.koiSyncFolderPath = value;
@@ -113,7 +118,7 @@ export class KoiSettingTab extends PluginSettingTab {
             .setName('Template file location')
             .setDesc('Will be used to generate documents imported from KOI')
             .addText(text => text
-                .setPlaceholder('')
+                .setPlaceholder('KOI Templates')
                 .setValue(this.plugin.settings.templatePath)
                 .onChange(async (value) => {
                     this.plugin.settings.templatePath = value;

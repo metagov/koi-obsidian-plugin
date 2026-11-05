@@ -21,7 +21,6 @@ export const KoiNetConfigSchema = z.object({
     node_name: z.string(),
     node_rid: z.string(),
     node_profile: NodeProfileSchema,
-    cache_directory_path: z.string(),
     polling_interval: z.number(),
     first_contact: NodeContactSchema,
     priv_key: PrivKeySchema.optional()

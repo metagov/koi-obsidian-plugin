@@ -7,6 +7,7 @@ import { NodeProfileSchema, NodeType } from "koi-net/protocol/node";
 import { parseRidString } from "rid-lib/utils";
 
 import KoiPlugin from "main";
+import { ridTypesOfInterest } from "settings";
 import { EventType, KoiEvent } from "koi-net/protocol/event";
 import { KOI_NET_EDGE_TYPE, KOI_NET_NODE_TYPE, OBSIDIAN_NOTE_TYPE } from "consts";
 
@@ -48,7 +49,7 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                 const nodeProfile = kobj.bundle!.validateContents(NodeProfileSchema);
 
                 const availableRidTypes = nodeProfile.provides.event?.filter(
-                    item => plugin.settings.interestedRidTypes.includes(item));
+                    item => ridTypesOfInterest(plugin.settings).includes(item));
 
                 if (!availableRidTypes || availableRidTypes.length === 0) return;
                 if (nodeProfile.node_type !== NodeType.enum.FULL) return;
@@ -87,22 +88,24 @@ export function configureNode(node: NodeInterface, plugin: KoiPlugin): void {
                             node: kobj.source,
                             req: { rid_types: edgeProfile.rid_types }
                         });
-                        
-                        console.log(`Retrieved ${payload.rids.length} RIDs from source node`)
 
-                        payload.rids.forEach(
-                            rid => {ctx.processor.handle({rid, source: kobj.source})});
+                        if (payload) {
+                            console.log(`Retrieved ${payload.rids.length} RIDs from source node`)
 
-                        // send existing obsidian notes if the 
-                        console.log(`Identied obsidian manger, sending existing notes`);
+                            payload.rids.forEach(
+                                rid => {ctx.processor.handle({rid, source: kobj.source})});
+                        }
+
+                        // send existing obsidian notes if the source node subscribes to them
                         if (edgeProfile.rid_types.contains(OBSIDIAN_NOTE_TYPE)) {
+                            console.log(`Identified obsidian manager, sending existing notes`);
                             for (const rid of plugin.indexer.listRids()) {
                                 const bundle = await node.effector.deref({ rid });
                                 if (!bundle) continue;
 
                                 console.log(`sending ${rid}`);
 
-                                ctx.eventQueue.pushEventTo({
+                                await ctx.eventQueue.pushEventTo({
                                     event: KoiEvent.fromBundle(EventType.enum.NEW, bundle),
                                     node: kobj.source
                                 })

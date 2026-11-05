@@ -2,6 +2,17 @@
     cursor: pointer;
 }
 
+.koi-setup-error {
+    display: none;
+    color: var(--text-error);
+    font-size: var(--font-ui-smaller);
+    margin: -0.5em 0 0.75em 0;
+}
+
+.koi-setup-error.is-visible {
+    display: block;
+}
+
 .koi-status-icon:hover {
     background: var(--background-modifier-hover);
 }

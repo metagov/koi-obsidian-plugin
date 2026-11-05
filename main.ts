@@ -1,21 +1,18 @@
-import { Plugin, TFile, setIcon, Notice, setTooltip, App, Modal, Setting, debounce, getFrontMatterInfo, MetadataCache, Menu, MenuItem } from 'obsidian';
-import { Mutex } from 'async-mutex';
-import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS } from 'settings';
+import { Plugin, TFile, setIcon, Notice, setTooltip, Menu, MenuItem } from 'obsidian';
+import { KoiPluginSettings, KoiSettingTab, DEFAULT_SETTINGS, ridTypesOfInterest } from 'settings';
 import { TelescopeFormatter } from 'formatter';
-import { defaultTelescopeTemplate } from 'default-template';
-import { RequestHandler } from 'koi-net/network/request_handlers';
 import { NodeInterface } from 'koi-net/core';
 import { KoiCache } from 'rid-lib/ext/cache';
 import { PrivateKey } from 'koi-net/protocol/secure';
 import { KoiNetConfigSchema } from 'koi-net/config';
 import { sha256Hash } from 'rid-lib/ext/utils';
 import { EventType } from 'koi-net/protocol/event';
-import { randomUUID } from 'crypto';
-import { Bundle } from 'rid-lib/ext/bundle';
 import { configureNode } from 'node-configuration';
 import { SetupModal } from 'setup-modal';
+import { ResetModal } from 'reset-modal';
 import { Indexer } from 'indexer';
-import { KOI_NET_NODE_TYPE } from 'consts';
+import { KOI_NET_NODE_TYPE, RID_CACHE_FOLDER_NAME } from 'consts';
+import { mergeDefaults } from 'utils';
 
 
 
@@ -29,12 +26,12 @@ export default class KoiPlugin extends Plugin {
     statusBarIcon: HTMLElement;
     statusBarText: HTMLElement;
     connected: boolean;
-    syncMutex: Mutex;
     fileFormatter: TelescopeFormatter;
     indexer: Indexer;
 
     vaultId: string;
     poller: number;
+    nodeStarted = false;
 
     async onload() {
         console.log("hello world!");
@@ -43,7 +40,7 @@ export default class KoiPlugin extends Plugin {
         this.addSettingTab(new KoiSettingTab(this.app, this));
 
         this.settings.vaultId = (this.app as unknown as { appId: string }).appId;
-        this.saveSettings();
+        await this.saveSettings();
 
         // window.plugin = this;
 
@@ -51,7 +48,7 @@ export default class KoiPlugin extends Plugin {
 
         this.cache = new KoiCache({
             vault: this.app.vault,
-            directoryPath: this.config.cache_directory_path
+            directoryPath: `${this.settings.koiSyncFolderPath}/${RID_CACHE_FOLDER_NAME}`
         });
 
         this.node = new NodeInterface({
@@ -67,16 +64,19 @@ export default class KoiPlugin extends Plugin {
 
         console.log("I am", this.node.identity.rid);
 
-        this.syncMutex = new Mutex();
         this.connected = true;
 
         this.statusBarText = this.addStatusBarItem();
         this.statusBarIcon = this.addStatusBarItem();
         this.statusBarIcon.addClass("koi-status-icon");
         this.statusBarIcon.setAttribute("data-tooltip-position", "top");
-        this.statusBarIcon.addEventListener("click", async () => {
+        this.statusBarIcon.addEventListener("click", () => {
             if (!this.settings.initialized) {
                 this.createSetupModal();
+            } else if (this.settings.syncPaused) {
+                void this.resumeSync();
+            } else {
+                void this.pauseSync();
             }
         });
 
@@ -88,37 +88,27 @@ export default class KoiPlugin extends Plugin {
         // 	}
         // });
 
-        this.addCommand({
-            id: 'drop-rid-cache',
-            name: 'Drop RID cache',
-            callback: async () => {
-                await this.cache.drop();
-            }
-        });
+        // dev only
+        // this.addCommand({
+        //     id: 'drop-rid-cache',
+        //     name: 'Drop RID cache',
+        //     callback: async () => {
+        //         await this.cache.drop();
+        //     }
+        // });
 
         this.addCommand({
             id: 'reset',
             name: 'Reset this plugin',
-            callback: async () => {
-                
-                console.log("forgetting myself...")
-                this.node.processor.handle({
-                    rid: this.node.identity.rid,
-                    eventType: EventType.enum.FORGET
-                })
-                await this.node.processor.flushKobjQueue();
-                console.log("done");
-                
-                await this.cache.drop();
-                await this.fileFormatter.drop();
-                await this.updateStatusBar();
-
-                this.settings = DEFAULT_SETTINGS;
-                await this.saveSettings();
-
-                const pluginId = this.manifest.id;
-                await (this.app as any).plugins.disablePlugin(pluginId);
-                await (this.app as any).plugins.enablePlugin(pluginId);
+            callback: () => {
+                new ResetModal(
+                    this.app,
+                    {
+                        syncFolderPath: this.settings.koiSyncFolderPath,
+                        cacheFolderPath: this.cache.directoryPath
+                    },
+                    () => this.reset()
+                ).open();
             }
         });
 
@@ -126,22 +116,34 @@ export default class KoiPlugin extends Plugin {
             id: 'manual-sync',
             name: 'Manually sync with network',
             callback: async () => {
+                if (this.settings.syncPaused) {
+                    new Notice("KOI-net: Syncing is paused, resume it to sync");
+                    return;
+                }
+
                 const neighbors = await this.node.graph.getNeighbors({direction: "in"});
-                neighbors.forEach(async (nodeRid) => {
-                    const payload = await this.node.requestHandler.fetchManifests({
-                        node: nodeRid,
-                        req: { rid_types: this.settings.interestedRidTypes }
-                    });
-                    payload.manifests.forEach(manifest => {
-                        this.node.processor.handle({manifest, source: nodeRid});
-                    });
-                });
+                for (const nodeRid of neighbors) {
+                    // one unreachable node shouldn't stop the others from syncing
+                    try {
+                        const payload = await this.node.requestHandler.fetchManifests({
+                            node: nodeRid,
+                            req: { rid_types: ridTypesOfInterest(this.settings) }
+                        });
+                        if (!payload) continue;
+                        for (const manifest of payload.manifests) {
+                            this.node.processor.handle({manifest, source: nodeRid});
+                        }
+                    } catch (err) {
+                        console.error(`Manual sync with ${nodeRid} failed`, err);
+                    }
+                }
+                await this.node.processor.flushKobjQueue();
             }
         });
 
         this.addCommand({
             id: 'reformat-telescopes',
-            name: 'Reformat telescopes from template',
+            name: 'Reformat all synced notes from templates',
             callback: async () => {
                 await this.fileFormatter.writeMultiple(
                     this.node.cache.listRids()
@@ -204,7 +206,7 @@ export default class KoiPlugin extends Plugin {
                         .onClick(async () => {
                             const file = this.fileFormatter.getFileByRid(url);
                             if (!file) return;
-                            this.app.workspace.getLeaf().openFile(file);
+                            await this.app.workspace.getLeaf().openFile(file);
                         })
                 })
             }
@@ -212,8 +214,18 @@ export default class KoiPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             console.log("calling setup");
-            this.setup();
+            void this.runSetup();
         })
+    }
+
+    // setup with failures surfaced to the user instead of lost as unhandled rejections
+    async runSetup() {
+        try {
+            await this.setup();
+        } catch (err) {
+            console.error("KOI-net setup failed", err);
+            new Notice("KOI-net: Failed to start node, see console for details");
+        }
     }
 
     async setup() {
@@ -228,15 +240,29 @@ export default class KoiPlugin extends Plugin {
 
 
         await this.node.secure.loadPrivKey(this.config.priv_key!);
-        await this.node.lifecycle.start();
+
+        // when paused, contacting the network waits until syncing is resumed;
+        // notes are still indexed, but their changes are held in the kobj queue
+        this.node.processor.paused = this.settings.syncPaused;
+        if (!this.settings.syncPaused)
+            await this.startNode();
 
         await this.indexer.indexNotes();
+        await this.indexer.forgetDeletedNotes();
 
-        new Notice("KOI-net: Started polling network...");
+        if (this.settings.syncPaused) {
+            new Notice("KOI-net: Syncing is paused, click the status bar icon to resume");
+        } else {
+            new Notice("KOI-net: Started polling network...");
+        }
+
+        // ticks are skipped by the poller while syncing is paused
         this.poller = this.registerInterval(
             window.setInterval(
-                async () => {
-                    await this.node.poller.poll();
+                () => {
+                    this.node.poller.poll().catch(err => {
+                        console.error("Poll failed", err);
+                    });
                     // await this.updateStatusBar();
                     // console.log("resolved links:", this.app.metadataCache.resolvedLinks);
                 },
@@ -244,6 +270,76 @@ export default class KoiPlugin extends Plugin {
             )
         );
 
+    }
+
+    async reset() {
+        // stop polling so a running tick can't repopulate the cache mid-reset
+        window.clearInterval(this.poller);
+
+        // changes held while paused are discarded, the reset forgets everything anyway
+        this.node.processor.kobjQueue.length = 0;
+        this.node.processor.paused = false;
+
+        // an uninitialized node has no RID to forget; a failed forget
+        // shouldn't block the local reset either
+        if (this.settings.initialized && this.node.identity.rid) {
+            try {
+                console.log("forgetting myself...")
+                this.node.processor.handle({
+                    rid: this.node.identity.rid,
+                    eventType: EventType.enum.FORGET
+                })
+                await this.node.processor.flushKobjQueue();
+                console.log("done");
+            } catch (err) {
+                console.error("Failed to forget node, resetting locally anyway", err);
+            }
+        }
+
+        await this.cache.drop();
+        await this.fileFormatter.drop();
+        await this.updateStatusBar();
+
+        this.settings = structuredClone(DEFAULT_SETTINGS);
+        await this.saveSettings();
+
+        const pluginId = this.manifest.id;
+        await (this.app as any).plugins.disablePlugin(pluginId);
+        await (this.app as any).plugins.enablePlugin(pluginId);
+    }
+
+    async startNode() {
+        await this.node.lifecycle.start();
+        this.nodeStarted = true;
+    }
+
+    async pauseSync() {
+        this.settings.syncPaused = true;
+        this.node.processor.paused = true;
+        await this.saveSettings();
+        await this.updateStatusBar();
+        new Notice("KOI-net: Syncing paused");
+    }
+
+    async resumeSync() {
+        this.settings.syncPaused = false;
+        this.node.processor.paused = false;
+        await this.saveSettings();
+        await this.updateStatusBar();
+        new Notice("KOI-net: Syncing resumed");
+
+        try {
+            // node wasn't started if the plugin loaded while paused
+            if (!this.nodeStarted)
+                await this.startNode();
+
+            // process changes held while paused, then catch up with the network
+            await this.node.processor.flushKobjQueue();
+            await this.node.poller.poll();
+        } catch (err) {
+            console.error("Failed to resume syncing", err);
+            new Notice("KOI-net: Failed to resume syncing, see console for details");
+        }
     }
 
     createSetupModal() {
@@ -275,7 +371,7 @@ export default class KoiPlugin extends Plugin {
 
                 new Notice(`KOI-net: Node RID set to ${nodeRid}`);
 
-                await this.setup();
+                await this.runSetup();
             }
         ).open();
     }
@@ -285,24 +381,30 @@ export default class KoiPlugin extends Plugin {
 
         if (!this.settings.initialized) {
             this.statusBarIconString = "circle-play";
-            setTooltip(this.statusBarIcon, "Click to setup your KOI-net node!");
+            setTooltip(this.statusBarIcon, "Click to set up your KOI-net node!");
+        } else if (this.settings.syncPaused) {
+            this.statusBarIconString = "circle-pause";
+            setTooltip(this.statusBarIcon, "Paused. Click to resume syncing");
         } else {
             this.statusBarIconString = "circle-check";
-            setTooltip(this.statusBarIcon, "Synced!");
+            setTooltip(this.statusBarIcon, "Synced! Click to pause");
         }
 
         if (this.statusBarIconString !== prevIconString) {
             setIcon(this.statusBarIcon, this.statusBarIconString);
         }
 
-        this.statusBarText.setText(`KOI-net: ${this.cache.listRids().length} 📜`);
+        const pausedLabel = this.settings.syncPaused ? " (paused)" : "";
+        this.statusBarText.setText(`KOI-net: ${this.cache.listRids().length} 📜${pausedLabel}`);
     }
 
     
 
     async loadSettings() {
         const loadedSettings = await this.loadData();
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedSettings);
+        // clone so setup never mutates DEFAULT_SETTINGS, and deep merge so
+        // newly added config fields get defaults for existing users
+        this.settings = mergeDefaults(structuredClone(DEFAULT_SETTINGS), loadedSettings);
     }
 
     async saveSettings() {

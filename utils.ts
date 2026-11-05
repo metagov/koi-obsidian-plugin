@@ -1,3 +1,20 @@
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// recursively fills in missing fields of `loaded` from `defaults`; arrays and
+// other non-object values from `loaded` replace the default outright
+export function mergeDefaults<T>(defaults: T, loaded: unknown): T {
+    if (!isPlainObject(defaults) || !isPlainObject(loaded))
+        return (loaded === undefined || loaded === null ? defaults : loaded) as T;
+
+    const merged: Record<string, unknown> = { ...defaults };
+    for (const [key, value] of Object.entries(loaded)) {
+        merged[key] = mergeDefaults(defaults[key], value);
+    }
+    return merged as T;
+}
+
 export function toFilenameSafeDateWithMs(unixTimestamp: string) {
     const date = new Date(parseFloat(unixTimestamp) * 1000);
     // Pad single-digit numbers with a leading zero

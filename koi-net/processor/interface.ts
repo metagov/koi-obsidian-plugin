@@ -8,20 +8,41 @@ import { KnowledgePipeline } from "./knowledge_pipeline";
 export class ProcessorInterface {
     pipeline: KnowledgePipeline
     kobjQueue: Array<KnowledgeObject>;
+    // while paused, queued kobjs are held unprocessed (no cache writes or
+    // network events) until the next flush after unpausing
+    paused: boolean;
+    private activeFlush: Promise<void> | null;
 
     constructor({pipeline}: {
         pipeline: KnowledgePipeline
     }) {
         this.pipeline = pipeline;
         this.kobjQueue = [];
+        this.paused = false;
+        this.activeFlush = null;
     }
 
-    async flushKobjQueue() {
-        while (this.kobjQueue.length > 0) {
+    // only one flush loop runs at a time; callers arriving mid-flush share it,
+    // and the running loop also drains anything they queued before calling
+    flushKobjQueue(): Promise<void> {
+        if (!this.activeFlush) {
+            this.activeFlush = this.drainQueue().finally(() => {
+                this.activeFlush = null;
+            });
+        }
+        return this.activeFlush;
+    }
+
+    private async drainQueue() {
+        while (!this.paused && this.kobjQueue.length > 0) {
             const kobj = this.kobjQueue.shift();
             if (kobj) {
                 console.log(`Dequeued ${kobj.stringify()}`);
-                await this.pipeline.process(kobj);
+                try {
+                    await this.pipeline.process(kobj);
+                } catch (err) {
+                    console.error(`Failed to process ${kobj.stringify()}`, err);
+                }
             }
         }
     }
