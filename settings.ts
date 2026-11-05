@@ -25,7 +25,6 @@ export const DEFAULT_SETTINGS: KoiPluginSettings = {
             },
             public_key: ""
         },
-        cache_directory_path: "rid_cache",
         polling_interval: 5,
         first_contact: {
             rid: undefined,

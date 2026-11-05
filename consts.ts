@@ -9,6 +9,9 @@ export const OBSIDIAN_NOTE_TYPE = "orn:obsidian.note";
 export const TELESCOPED_TYPE = "orn:telescoped";
 export const SLACK_USER_TYPE = "orn:slack.user";
 
+// the RID cache always lives in this subdirectory of the sync folder
+export const RID_CACHE_FOLDER_NAME = "RID Cache";
+
 // sync folder subdirectory names for built-in RID types, other types fall
 // back to a filename-safe version of the RID type
 export const RID_TYPE_FOLDER_NAMES: Record<string, string> = {

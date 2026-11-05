@@ -122,7 +122,11 @@ export class TelescopeFormatter {
         if (!folder) return;
 
         for (const subFolder of folder.children) {
-            if (!(subFolder instanceof TFolder)) 
+            if (!(subFolder instanceof TFolder))
+                continue;
+
+            // the RID cache only holds bundle JSON, not rendered notes
+            if (subFolder.path === this.cache.directoryPath)
                 continue;
 
             for (const file of subFolder.children) {

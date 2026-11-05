@@ -11,7 +11,7 @@ import { configureNode } from 'node-configuration';
 import { SetupModal } from 'setup-modal';
 import { ResetModal } from 'reset-modal';
 import { Indexer } from 'indexer';
-import { KOI_NET_NODE_TYPE } from 'consts';
+import { KOI_NET_NODE_TYPE, RID_CACHE_FOLDER_NAME } from 'consts';
 import { mergeDefaults } from 'utils';
 
 
@@ -48,7 +48,7 @@ export default class KoiPlugin extends Plugin {
 
         this.cache = new KoiCache({
             vault: this.app.vault,
-            directoryPath: this.config.cache_directory_path
+            directoryPath: `${this.settings.koiSyncFolderPath}/${RID_CACHE_FOLDER_NAME}`
         });
 
         this.node = new NodeInterface({
@@ -104,7 +104,7 @@ export default class KoiPlugin extends Plugin {
                     this.app,
                     {
                         syncFolderPath: this.settings.koiSyncFolderPath,
-                        cacheFolderPath: this.config.cache_directory_path
+                        cacheFolderPath: this.cache.directoryPath
                     },
                     () => this.reset()
                 ).open();
